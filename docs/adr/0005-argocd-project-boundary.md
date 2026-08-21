@@ -10,7 +10,7 @@ Argo CD's default project is broad enough to deploy arbitrary sources and resour
 
 ## Decision
 
-Use the `platform` AppProject for platform and application Applications. It restricts source repositories to this Git repository and the two approved Helm repositories, allows only the platform namespaces as destinations, and permits only `Namespace` cluster-scoped resources.
+Use the `platform` AppProject for platform and application Applications. It restricts source repositories to this Git repository and the approved ingress Helm repository, allows only the platform namespaces as destinations, and permits only `Namespace` cluster-scoped resources.
 
 ## Consequences
 

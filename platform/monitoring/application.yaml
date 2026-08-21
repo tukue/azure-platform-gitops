@@ -1,27 +1,27 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: kube-prometheus-stack
+  name: azure-monitor-metrics-config
   namespace: argocd
 spec:
   project: platform
   source:
-    chart: kube-prometheus-stack
-    repoURL: https://prometheus-community.github.io/helm-charts
-    targetRevision: "68.4.5"
-    helm:
-      values: |
-        grafana:
-          service:
-            type: ClusterIP
-        alertmanager:
-          enabled: false
+    path: platform/monitoring/config
+    repoURL: https://github.com/tukue/azure-platform-gitops.git
+    targetRevision: main
   destination:
-    namespace: monitoring
+    namespace: kube-system
     server: https://kubernetes.default.svc
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+      refresh: true
     syncOptions:
       - CreateNamespace=false

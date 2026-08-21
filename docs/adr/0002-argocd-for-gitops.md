@@ -10,7 +10,7 @@ Kubernetes desired state must be auditable, reviewable, and restored after drift
 
 ## Decision
 
-Use Argo CD to reconcile `clusters/dev` from Git. A bootstrap `platform-root` Application creates platform and application Applications. Argo CD manages ingress-nginx and kube-prometheus-stack directly from their pinned Helm repositories.
+Use Argo CD to reconcile `clusters/dev` from Git. A bootstrap `platform-root` Application creates platform and application Applications. Argo CD manages ingress-nginx from its pinned Helm repository and Azure Monitor metrics-agent configuration from Git.
 
 ## Consequences
 

@@ -4,26 +4,48 @@ This repository is a focused reference implementation for an Azure platform deli
 
 ## Implemented
 
-- Modular Terraform for a resource group, VNet, AKS subnet, ACR, AKS, and AKS-kubelet `AcrPull` permission.
+- Modular Terraform for a resource group, VNet, AKS subnet, private-endpoint subnet, ACR, AKS, private Key Vault, and required identities/RBAC.
 - AKS Microsoft Entra RBAC, managed identity, OIDC issuer, and Workload Identity.
 - GitHub Actions Terraform formatting, initialization, validation, and OIDC-backed speculative plan.
 - GitHub Actions API unit tests, container build validation, and Kustomize rendering for every Argo CD source tree.
-- Argo CD app-of-apps hierarchy with a restricted AppProject, declarative ingress-nginx, and Prometheus/Grafana through pinned Helm releases.
-- A minimal FastAPI `/health` service with probes, resource controls, hardened pod settings, and an internal ingress route.
+- Argo CD app-of-apps hierarchy with a restricted AppProject, declarative ingress-nginx, and Azure Monitor metrics-agent configuration.
+- Azure-native observability: Container Insights, Log Analytics, Managed Prometheus, Azure Managed Grafana, selected diagnostics, and two operational alerts.
+- Azure Key Vault secret injection through Argo CD-managed External Secrets Operator and AKS Workload Identity; values never enter Git or Terraform state.
+- A minimal FastAPI `/health` and `/metrics` service with probes, resource controls, hardened pod settings, and an internal ingress route.
 - Architecture decision records and an explicit Argo CD bootstrap command.
 
 ## Architecture
 
-```text
-GitHub pull request -> GitHub Actions validation -> merge
-                                               |
-Terraform -> Azure resource group/VNet/ACR/AKS |
-                                               v
-Git repository <- Argo CD reconciliation <- clusters/dev
-                                        |          |
-                                  platform/   applications/
-                                        |          |
-                           ingress + monitoring   demo API in AKS
+```mermaid
+flowchart LR
+    DEV[Developer] --> PR[GitHub pull request]
+    PR --> CI[GitHub Actions validation]
+    CI --> GIT[Git repository]
+
+    TF[Terraform] --> AZ[Azure resource group]
+    AZ --> AKS[AKS]
+    AZ --> ACR[Azure Container Registry]
+    AZ --> LAW[Log Analytics Workspace]
+    AZ --> AMW[Azure Monitor Workspace]
+    AZ --> AMG[Azure Managed Grafana]
+    AZ --> KV[Private Azure Key Vault]
+
+    GIT --> ARGO[Argo CD]
+    ARGO --> PLATFORM[Platform configuration]
+    ARGO --> APP[Demo API deployment]
+    PLATFORM --> AKS
+    APP --> AKS
+    ACR --> AKS
+    KV --> ESO[External Secrets Operator]
+    ARGO --> ESO
+    ESO --> APP
+
+    AKS --> CI_LOGS[Container Insights]
+    CI_LOGS --> LAW
+    AKS --> PROM[Managed Prometheus]
+    PROM --> AMW
+    AMW --> AMG
+    LAW --> ALERTS[Azure Monitor alerts]
 ```
 
 Terraform owns Azure resources and Azure RBAC. Argo CD owns Kubernetes resources. GitHub Actions builds and validates, but never deploys with `kubectl apply`.
@@ -81,9 +103,9 @@ export GIT_REPOSITORY_URL="https://github.com/your-org/azure-platform-gitops.git
 ./scripts/bootstrap-argocd.sh
 ```
 
-The bootstrap command is the one-time exception that installs Argo CD and creates the `platform-root` Application. From then on, Argo CD continuously reconciles `clusters/dev`, which creates the platform and application Applications. The `platform` AppProject restricts child Applications to approved repositories and namespaces. For a private repository, update `clusters/dev/repository-config.yaml` to its SSH URL, supply a read-only deploy key through `GIT_SSH_PRIVATE_KEY`, and commit the URL change before bootstrap. Before applying the demo workload, replace the ACR hostname placeholder in `applications/demo-api/deployment.yaml` with the Terraform `acr_login_server` output and commit the change.
+The bootstrap command is the one-time exception that installs Argo CD's HA profile and creates the `platform-root` Application. HA requires at least three schedulable nodes; set `system_node_min_count = 3` before bootstrap. `ARGOCD_INSTALL_PROFILE=standard` is available only as an explicit non-production exception. From then on, Argo CD continuously reconciles `clusters/dev`, which creates the platform and application Applications. The `platform` AppProject restricts child Applications to approved repositories and namespaces. For a private repository, update `clusters/dev/repository-config.yaml` to its SSH URL, supply a read-only deploy key through `GIT_SSH_PRIVATE_KEY`, and commit the URL change before bootstrap. Before applying the demo workload, replace the ACR hostname placeholder in `applications/demo-api/deployment.yaml` with the Terraform `acr_login_server` output and commit the change. See [Argo CD operations](docs/argocd-operations.md) for scaling and operational checks.
 
-Platform components are internal by default: ingress-nginx requests an internal Azure load balancer, Grafana is `ClusterIP`, and Alertmanager is disabled until a notification route exists. The demo is reachable at `demo-api.internal.example.com` after that name is mapped through private DNS to the ingress address. Retrieve Grafana credentials only from the cluster after Helm has generated them; do not add them to Git.
+Platform components are internal by default: ingress-nginx requests an internal Azure load balancer. The demo is reachable at `demo-api.internal.example.com` after that name is mapped through private DNS to the ingress address.
 
 ## Drift demonstration
 
@@ -96,11 +118,15 @@ argocd app get applications
 kubectl -n demo get deployment demo-api
 ```
 
-The deployment returns to the Git-declared two replicas. The manual change is intentionally not committed.
+The deployment returns to the Git-declared two replicas through Argo CD self-healing. The manual change is intentionally not committed; see [Argo CD operations](docs/argocd-operations.md) for the full drift workflow.
 
 ## Observability
 
-`kube-prometheus-stack` provides Prometheus and Grafana in the `monitoring` namespace. The ingress controller exposes Prometheus metrics and a ServiceMonitor. Access Grafana through an approved private-network path or temporary port-forwarding; this reference does not expose an internet-facing dashboard.
+AKS sends container logs to Azure Monitor Container Insights and `law-<project>-<environment>`. Managed Prometheus sends Kubernetes and annotated application metrics to `amw-<project>-<environment>`, while Azure Managed Grafana provides visualization through managed identity and Azure RBAC. Two Azure Monitor alerts detect excessive container restarts and missing demo API pods. See [Azure-native observability](docs/observability.md) for architecture, KQL, alerting, identity, troubleshooting, and cost guidance.
+
+## Secret management
+
+Terraform provides a private, RBAC-enabled Azure Key Vault with a private endpoint and a narrowly scoped federated managed identity. Argo CD installs External Secrets Operator and reconciles secret references; it does not store values. Populate Key Vault secrets from an approved private-network operator workflow, then allow the operator to synchronize them into the target namespace. See [Azure Key Vault secret management](docs/secret-management.md) for the required identifier configuration, rotation workflow, security boundary, and troubleshooting steps.
 
 ## Cleanup
 
@@ -117,8 +143,10 @@ Destroying AKS also removes Argo CD and all workloads. Review the Terraform plan
 ## Limitations and future improvements
 
 - Implemented state storage is local only; shared environments need a protected remote state backend.
-- Image publishing and Git image-tag promotion are intentionally not automated yet.
+- Image-tag promotion remains a pull-request step after immutable ACR image publication.
 - The sample uses one system node pool, Basic ACR, and no availability-zone strategy.
-- Future work can add private ACR endpoints, dedicated workload node pools, backup/disaster recovery, alert routing, image scanning, and Git-based image promotion automation after operating requirements justify them.
+- Observability services default to private-only access, but the required private endpoints, private DNS, and Azure Monitor Private Link Scope are not yet provisioned. Add them before Azure deployment.
+- Key Vault private endpoint and private DNS are implemented; private endpoints for observability services remain a future improvement before private-only observability deployment.
+- Future work can add dashboard-as-code, action groups, dedicated workload node pools, backup/disaster recovery, image scanning, and Git-based image promotion automation after operating requirements justify them.
 
-See [the ADRs](docs/adr) for the reasoning behind AKS, Argo CD, ownership boundaries, and federated identity.
+See [the ADRs](docs/adr) for the reasoning behind AKS, Argo CD, ownership boundaries, federated identity, Azure-native observability, and Key Vault secret injection.

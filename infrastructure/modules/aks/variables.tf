@@ -7,6 +7,15 @@ variable "subnet_id" { type = string }
 variable "admin_group_object_ids" { type = set(string) }
 variable "private_cluster_enabled" { type = bool }
 variable "api_server_authorized_ip_ranges" { type = set(string) }
+variable "log_analytics_workspace_id" { type = string }
+variable "prometheus_annotations_allowed" {
+  type     = string
+  nullable = true
+}
+variable "prometheus_labels_allowed" {
+  type     = string
+  nullable = true
+}
 variable "system_node_vm_size" { type = string }
 variable "system_node_min_count" { type = number }
 variable "system_node_max_count" { type = number }

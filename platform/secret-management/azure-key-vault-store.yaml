@@ -1,29 +1,22 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: platform
+  name: azure-key-vault-store
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   project: platform
   source:
-    path: platform
+    path: platform/secret-management/config
     repoURL: https://github.com/tukue/azure-platform-gitops.git
     targetRevision: main
   destination:
-    namespace: argocd
+    namespace: external-secrets
     server: https://kubernetes.default.svc
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
-      refresh: true
     syncOptions:
       - CreateNamespace=false
