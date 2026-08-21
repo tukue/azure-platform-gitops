@@ -23,6 +23,16 @@ resource "azurerm_kubernetes_cluster" "this" {
     authorized_ip_ranges = var.private_cluster_enabled ? [] : var.api_server_authorized_ip_ranges
   }
 
+  oms_agent {
+    log_analytics_workspace_id      = var.log_analytics_workspace_id
+    msi_auth_for_monitoring_enabled = true
+  }
+
+  monitor_metrics {
+    annotations_allowed = var.prometheus_annotations_allowed
+    labels_allowed      = var.prometheus_labels_allowed
+  }
+
   default_node_pool {
     name                 = "system"
     vm_size              = var.system_node_vm_size

@@ -5,3 +5,7 @@ output "acr_name" { value = module.acr.name }
 output "acr_login_server" { value = module.acr.login_server }
 output "aks_oidc_issuer_url" { value = module.aks.oidc_issuer_url }
 output "aks_kubelet_identity_object_id" { value = module.aks.kubelet_identity_object_id }
+output "log_analytics_workspace_id" { value = module.observability.log_analytics_workspace_id }
+output "log_analytics_workspace_name" { value = module.observability.log_analytics_workspace_name }
+output "azure_monitor_workspace_id" { value = module.observability.monitor_workspace_id }
+output "azure_managed_grafana_endpoint" { value = module.observability.grafana_endpoint }

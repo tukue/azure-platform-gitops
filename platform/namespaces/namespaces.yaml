@@ -8,13 +8,6 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: monitoring
-  labels:
-    pod-security.kubernetes.io/enforce: baseline
----
-apiVersion: v1
-kind: Namespace
-metadata:
   name: demo
   labels:
     pod-security.kubernetes.io/enforce: baseline
