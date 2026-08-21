@@ -104,7 +104,7 @@ The deployment returns to the Git-declared two replicas. The manual change is in
 
 ## Cleanup
 
-First remove Argo CD-managed resources if the cluster is reachable, then destroy Azure infrastructure:
+First remove Argo CD-managed resources if the cluster is reachable.
 
 ```bash
 kubectl delete application --all --namespace argocd
