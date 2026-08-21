@@ -7,6 +7,7 @@ variable "subnet_id" { type = string }
 variable "admin_group_object_ids" { type = set(string) }
 variable "private_cluster_enabled" { type = bool }
 variable "api_server_authorized_ip_ranges" { type = set(string) }
+variable "azure_policy_enabled" { type = bool }
 variable "log_analytics_workspace_id" { type = string }
 variable "prometheus_annotations_allowed" {
   type     = string

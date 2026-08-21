@@ -6,7 +6,7 @@ resource "azurerm_kubernetes_cluster" "this" {
   kubernetes_version                = var.kubernetes_version
   role_based_access_control_enabled = true
   local_account_disabled            = true
-  azure_policy_enabled              = false
+  azure_policy_enabled              = var.azure_policy_enabled
   oidc_issuer_enabled               = true
   workload_identity_enabled         = true
   private_cluster_enabled           = var.private_cluster_enabled

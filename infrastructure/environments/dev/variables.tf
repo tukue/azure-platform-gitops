@@ -31,6 +31,11 @@ variable "aks_subnet_address_prefix" { type = string }
 variable "private_endpoints_subnet_address_prefix" { type = string }
 variable "private_cluster_enabled" { type = bool }
 variable "api_server_authorized_ip_ranges" { type = set(string) }
+variable "azure_policy_enabled" {
+  type        = bool
+  default     = true
+  description = "Enables the AKS Azure Policy add-on. Assign built-in policies in audit mode before enforcing them."
+}
 variable "log_analytics_retention_in_days" {
   type    = number
   default = 30
