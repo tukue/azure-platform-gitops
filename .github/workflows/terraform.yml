@@ -1,0 +1,73 @@
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - "infrastructure/**"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infrastructure/environments/dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.4"
+      - name: Check formatting
+        run: terraform fmt -check -recursive ../..
+      - name: Initialize without backend
+        run: terraform init -backend=false
+      - name: Validate configuration
+        run: terraform validate
+
+  plan:
+    needs: validate
+    if: >-
+      vars.AZURE_CLIENT_ID != '' && vars.AZURE_TENANT_ID != '' &&
+      vars.AZURE_SUBSCRIPTION_ID != '' && vars.AZURE_PRINCIPAL_ID != '' &&
+      vars.TF_ADMIN_GROUP_OBJECT_IDS != ''
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        working-directory: infrastructure/environments/dev
+    env:
+      ARM_USE_OIDC: true
+      ARM_USE_AZUREAD: true
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_project: platform
+      TF_VAR_environment: dev
+      TF_VAR_location: swedencentral
+      TF_VAR_acr_name: ${{ vars.ACR_NAME }}
+      TF_VAR_admin_group_object_ids: ${{ vars.TF_ADMIN_GROUP_OBJECT_IDS }}
+      TF_VAR_github_actions_principal_id: ${{ vars.AZURE_PRINCIPAL_ID }}
+      TF_VAR_vnet_address_space: 10.20.0.0/16
+      TF_VAR_aks_subnet_address_prefix: 10.20.0.0/22
+      TF_VAR_private_cluster_enabled: false
+      TF_VAR_api_server_authorized_ip_ranges: ${{ vars.AKS_API_SERVER_AUTHORIZED_IP_RANGES }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.4"
+      - name: Initialize without backend
+        run: terraform init -backend=false
+      - name: Create speculative plan
+        run: terraform plan -no-color -out=tfplan

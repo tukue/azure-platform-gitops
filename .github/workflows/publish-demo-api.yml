@@ -1,0 +1,36 @@
+name: Publish demo API
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Immutable tag to publish, for example a Git commit SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: dev
+    if: >-
+      vars.AZURE_CLIENT_ID != '' && vars.AZURE_TENANT_ID != '' &&
+      vars.AZURE_SUBSCRIPTION_ID != '' && vars.AZURE_PRINCIPAL_ID != '' &&
+      vars.ACR_NAME != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Authenticate Docker to ACR
+        run: az acr login --name "${{ vars.ACR_NAME }}"
+      - name: Build and push immutable image
+        run: |
+          image="${{ vars.ACR_NAME }}.azurecr.io/demo-api:${{ inputs.image_tag }}"
+          docker build applications/demo-api --tag "$image"
+          docker push "$image"

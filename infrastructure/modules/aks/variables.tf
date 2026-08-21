@@ -1,0 +1,13 @@
+variable "name" { type = string }
+variable "location" { type = string }
+variable "resource_group_name" { type = string }
+variable "dns_prefix" { type = string }
+variable "kubernetes_version" { type = string }
+variable "subnet_id" { type = string }
+variable "admin_group_object_ids" { type = set(string) }
+variable "private_cluster_enabled" { type = bool }
+variable "api_server_authorized_ip_ranges" { type = set(string) }
+variable "system_node_vm_size" { type = string }
+variable "system_node_min_count" { type = number }
+variable "system_node_max_count" { type = number }
+variable "tags" { type = map(string) }

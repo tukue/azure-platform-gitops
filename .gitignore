@@ -1,0 +1,14 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+.env
+.env.*
+__pycache__/
+*.py[cod]
+.pytest_cache/
+dist/
+*.egg-info/
+.DS_Store

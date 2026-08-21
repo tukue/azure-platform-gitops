@@ -1,0 +1,30 @@
+name: GitOps validation
+
+on:
+  pull_request:
+    paths:
+      - "clusters/**"
+      - "platform/**"
+      - "applications/**"
+      - ".github/workflows/gitops.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    name: Render ${{ matrix.path }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        path:
+          - clusters/dev
+          - platform
+          - applications
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Render Kustomize source
+        run: kubectl kustomize "${{ matrix.path }}" > /dev/null
