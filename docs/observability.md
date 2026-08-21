@@ -95,7 +95,7 @@ Set `alert_action_group_ids` to existing Azure Monitor action-group resource IDs
 
 AKS uses managed identity for Container Insights and the managed metrics pipeline. Azure Managed Grafana uses its system-assigned managed identity for data access. Application metrics require no Azure credential and expose only process and health-counter telemetry; do not add request bodies, tokens, user identifiers, or unbounded labels.
 
-This dev reference enables public network access for Azure Monitor Workspace and Azure Managed Grafana to support an uncomplicated first deployment. Grafana still requires Microsoft Entra authentication and explicit RBAC. Production environments should evaluate private endpoints, private DNS, Conditional Access, and centralized Grafana access groups before disabling public access.
+Public network access is disabled by default for the Azure Monitor Workspace, its data collection endpoint, and Azure Managed Grafana. Before deployment, provide private endpoints, private DNS, and an Azure Monitor Private Link Scope so AKS can ingest telemetry and authorized users can access Grafana. Microsoft Entra authentication and explicit RBAC remain required. The public-access variables are retained only as an explicit, reviewed exception for short-lived development environments.
 
 ## Troubleshooting
 
@@ -115,5 +115,5 @@ This dev reference enables public network access for Azure Monitor Workspace and
 ## Limitations
 
 - The Terraform configuration is locally validated only; Azure deployment remains required to validate regional availability, diagnostic categories, and data ingestion.
-- This MVP does not configure private endpoints, dashboard-as-code, action groups, or long-term archive retention.
+- This MVP does not yet provision the private endpoints, private DNS, or Azure Monitor Private Link Scope required by its private-access defaults. Add those network components before Azure deployment, along with dashboard-as-code, action groups, and long-term archive retention.
 - KQL table schemas can vary as Azure Monitor evolves; validate queries against the deployed workspace before operationalizing runbooks.

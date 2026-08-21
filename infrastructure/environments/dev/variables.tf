@@ -36,11 +36,11 @@ variable "log_analytics_retention_in_days" {
 }
 variable "observability_public_network_access_enabled" {
   type    = bool
-  default = true
+  default = false
 }
 variable "grafana_public_network_access_enabled" {
   type    = bool
-  default = true
+  default = false
 }
 variable "alert_action_group_ids" {
   type        = set(string)

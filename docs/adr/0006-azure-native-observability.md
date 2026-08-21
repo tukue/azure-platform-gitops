@@ -14,6 +14,6 @@ Use Azure Monitor Container Insights with Log Analytics for logs, Azure Monitor 
 
 ## Consequences
 
-The platform no longer operates Prometheus or Grafana pods. Azure Managed Grafana Standard has a cost and is publicly reachable by default in this MVP, protected by Microsoft Entra ID and role assignments. Private endpoints, private DNS, and central action groups are deferred until the surrounding network and operations model requires them.
+The platform no longer operates Prometheus or Grafana pods. Azure Managed Grafana Standard has a cost, and public network access is disabled by default for Azure Monitor Workspace, its data collection endpoint, and Grafana. Deployment therefore requires private endpoints, private DNS, and an Azure Monitor Private Link Scope before private AKS can ingest data or users can reach Grafana. Central action groups remain deferred.
 
 Self-managed Prometheus and Grafana remain appropriate where portability, offline operation, custom extensions, or complete storage/control-plane ownership outweigh the operational cost of running them.

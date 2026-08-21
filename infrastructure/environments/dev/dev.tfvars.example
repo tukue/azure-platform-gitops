@@ -14,8 +14,8 @@ api_server_authorized_ip_ranges  = ["203.0.113.10/32"]
 acr_sku                          = "Basic"
 acr_public_network_access_enabled = true
 log_analytics_retention_in_days  = 30
-observability_public_network_access_enabled = true
-grafana_public_network_access_enabled       = true
+observability_public_network_access_enabled = false
+grafana_public_network_access_enabled       = false
 alert_action_group_ids = []
 
 tags = {

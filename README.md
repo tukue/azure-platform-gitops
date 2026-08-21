@@ -136,6 +136,7 @@ Destroying AKS also removes Argo CD and all workloads. Review the Terraform plan
 - Implemented state storage is local only; shared environments need a protected remote state backend.
 - Image-tag promotion remains a pull-request step after immutable ACR image publication.
 - The sample uses one system node pool, Basic ACR, and no availability-zone strategy.
-- Future work can add private endpoints, dashboard-as-code, action groups, dedicated workload node pools, backup/disaster recovery, image scanning, and Git-based image promotion automation after operating requirements justify them.
+- Observability services default to private-only access, but the required private endpoints, private DNS, and Azure Monitor Private Link Scope are not yet provisioned. Add them before Azure deployment.
+- Future work can add dashboard-as-code, action groups, dedicated workload node pools, backup/disaster recovery, image scanning, and Git-based image promotion automation after operating requirements justify them.
 
 See [the ADRs](docs/adr) for the reasoning behind AKS, Argo CD, ownership boundaries, federated identity, and Azure-native observability.
