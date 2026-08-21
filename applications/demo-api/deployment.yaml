@@ -27,6 +27,10 @@ spec:
         - name: api
           image: replace-with-your-acr.azurecr.io/demo-api:0.1.0
           imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: demo-api-runtime
+                optional: true
           ports:
             - name: http
               containerPort: 8080

@@ -9,3 +9,7 @@ output "log_analytics_workspace_id" { value = module.observability.log_analytics
 output "log_analytics_workspace_name" { value = module.observability.log_analytics_workspace_name }
 output "azure_monitor_workspace_id" { value = module.observability.monitor_workspace_id }
 output "azure_managed_grafana_endpoint" { value = module.observability.grafana_endpoint }
+output "key_vault_name" { value = module.key_vault.name }
+output "key_vault_uri" { value = module.key_vault.vault_uri }
+output "external_secrets_client_id" { value = module.key_vault.external_secrets_client_id }
+output "tenant_id" { value = data.azurerm_client_config.current.tenant_id }

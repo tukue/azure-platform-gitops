@@ -13,14 +13,29 @@ resource "azurerm_resource_group" "this" {
   tags     = local.common_tags
 }
 
+data "azurerm_client_config" "current" {}
+
 module "networking" {
-  source                    = "../../modules/networking"
-  name                      = "vnet-${local.name_prefix}"
-  location                  = azurerm_resource_group.this.location
-  resource_group_name       = azurerm_resource_group.this.name
-  address_space             = var.vnet_address_space
-  aks_subnet_address_prefix = var.aks_subnet_address_prefix
-  tags                      = local.common_tags
+  source                                  = "../../modules/networking"
+  name                                    = "vnet-${local.name_prefix}"
+  location                                = azurerm_resource_group.this.location
+  resource_group_name                     = azurerm_resource_group.this.name
+  address_space                           = var.vnet_address_space
+  aks_subnet_address_prefix               = var.aks_subnet_address_prefix
+  private_endpoints_subnet_address_prefix = var.private_endpoints_subnet_address_prefix
+  tags                                    = local.common_tags
+}
+
+module "key_vault" {
+  source                     = "../../modules/key-vault"
+  name                       = var.key_vault_name
+  location                   = azurerm_resource_group.this.location
+  resource_group_name        = azurerm_resource_group.this.name
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  virtual_network_id         = module.networking.vnet_id
+  private_endpoint_subnet_id = module.networking.private_endpoints_subnet_id
+  oidc_issuer_url            = module.aks.oidc_issuer_url
+  tags                       = local.common_tags
 }
 
 module "acr" {

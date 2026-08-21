@@ -3,6 +3,10 @@ variable "project" { type = string }
 variable "environment" { type = string }
 variable "location" { type = string }
 variable "acr_name" { type = string }
+variable "key_vault_name" {
+  type        = string
+  description = "Globally unique Azure Key Vault name used by External Secrets Operator."
+}
 variable "admin_group_object_ids" { type = set(string) }
 variable "grafana_admin_group_object_id" {
   type        = string
@@ -24,6 +28,7 @@ variable "kubernetes_version" {
 }
 variable "vnet_address_space" { type = string }
 variable "aks_subnet_address_prefix" { type = string }
+variable "private_endpoints_subnet_address_prefix" { type = string }
 variable "private_cluster_enabled" { type = bool }
 variable "api_server_authorized_ip_ranges" { type = set(string) }
 variable "log_analytics_retention_in_days" {
