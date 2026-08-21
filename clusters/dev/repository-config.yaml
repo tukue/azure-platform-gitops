@@ -4,4 +4,4 @@ metadata:
   name: gitops-repository
   namespace: argocd
 data:
-  repoURL: https://github.com/replace-with-your-org/azure-platform-gitops.git
+  repoURL: https://github.com/tukue/azure-platform-gitops.git

@@ -3,11 +3,13 @@ kind: Application
 metadata:
   name: applications
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
-  project: default
+  project: platform
   source:
     path: applications
-    repoURL: https://github.com/replace-with-your-org/azure-platform-gitops.git
+    repoURL: https://github.com/tukue/azure-platform-gitops.git
     targetRevision: main
   destination:
     namespace: argocd

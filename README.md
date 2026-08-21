@@ -8,8 +8,8 @@ This repository is a focused reference implementation for an Azure platform deli
 - AKS Microsoft Entra RBAC, managed identity, OIDC issuer, and Workload Identity.
 - GitHub Actions Terraform formatting, initialization, validation, and OIDC-backed speculative plan.
 - GitHub Actions API unit tests, container build validation, and Kustomize rendering for every Argo CD source tree.
-- Argo CD app-of-apps hierarchy, declarative ingress-nginx, and Prometheus/Grafana through pinned Helm releases.
-- A minimal FastAPI `/health` service with probes, resource controls, and hardened pod settings.
+- Argo CD app-of-apps hierarchy with a restricted AppProject, declarative ingress-nginx, and Prometheus/Grafana through pinned Helm releases.
+- A minimal FastAPI `/health` service with probes, resource controls, hardened pod settings, and an internal ingress route.
 - Architecture decision records and an explicit Argo CD bootstrap command.
 
 ## Architecture
@@ -73,7 +73,7 @@ The application workflow runs tests and builds the container. The manual **Publi
 
 ## GitOps workflow
 
-After `kubectl get nodes` succeeds, set the committed repository URL in `clusters/dev/repository-config.yaml`, then bootstrap Argo CD from an administrator workstation:
+After `kubectl get nodes` succeeds, bootstrap Argo CD from an administrator workstation:
 
 ```bash
 export ARGOCD_VERSION="v<supported-version>"
@@ -81,9 +81,9 @@ export GIT_REPOSITORY_URL="https://github.com/your-org/azure-platform-gitops.git
 ./scripts/bootstrap-argocd.sh
 ```
 
-The bootstrap command is the one-time exception that installs Argo CD and creates the `platform-root` Application. From then on, Argo CD continuously reconciles `clusters/dev`, which creates the platform and application Applications. For a private repository, supply a read-only deploy key through `GIT_SSH_PRIVATE_KEY` and use the SSH repository URL; its Kubernetes Secret is created only during bootstrap. Before applying the demo workload, replace the ACR hostname placeholder in `applications/demo-api/deployment.yaml` with the Terraform `acr_login_server` output and commit the change.
+The bootstrap command is the one-time exception that installs Argo CD and creates the `platform-root` Application. From then on, Argo CD continuously reconciles `clusters/dev`, which creates the platform and application Applications. The `platform` AppProject restricts child Applications to approved repositories and namespaces. For a private repository, update `clusters/dev/repository-config.yaml` to its SSH URL, supply a read-only deploy key through `GIT_SSH_PRIVATE_KEY`, and commit the URL change before bootstrap. Before applying the demo workload, replace the ACR hostname placeholder in `applications/demo-api/deployment.yaml` with the Terraform `acr_login_server` output and commit the change.
 
-Platform components are internal by default: ingress-nginx requests an internal Azure load balancer, Grafana is `ClusterIP`, and Alertmanager is disabled until a notification route exists. Retrieve Grafana credentials only from the cluster after Helm has generated them; do not add them to Git.
+Platform components are internal by default: ingress-nginx requests an internal Azure load balancer, Grafana is `ClusterIP`, and Alertmanager is disabled until a notification route exists. The demo is reachable at `demo-api.internal.example.com` after that name is mapped through private DNS to the ingress address. Retrieve Grafana credentials only from the cluster after Helm has generated them; do not add them to Git.
 
 ## Drift demonstration
 
