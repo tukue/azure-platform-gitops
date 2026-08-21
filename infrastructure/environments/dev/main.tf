@@ -73,6 +73,7 @@ module "aks" {
   admin_group_object_ids          = var.admin_group_object_ids
   private_cluster_enabled         = var.private_cluster_enabled
   api_server_authorized_ip_ranges = var.api_server_authorized_ip_ranges
+  azure_policy_enabled            = var.azure_policy_enabled
   log_analytics_workspace_id      = module.observability.log_analytics_workspace_id
   prometheus_annotations_allowed  = null
   prometheus_labels_allowed       = null
