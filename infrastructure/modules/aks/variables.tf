@@ -6,6 +6,19 @@ variable "kubernetes_version" { type = string }
 variable "subnet_id" { type = string }
 variable "admin_group_object_ids" { type = set(string) }
 variable "private_cluster_enabled" { type = bool }
+variable "outbound_type" {
+  type    = string
+  default = "loadBalancer"
+  validation {
+    condition     = contains(["loadBalancer", "userDefinedRouting"], var.outbound_type)
+    error_message = "AKS outbound_type must be loadBalancer or userDefinedRouting."
+  }
+}
+variable "disk_encryption_set_id" {
+  type     = string
+  default  = null
+  nullable = true
+}
 variable "api_server_authorized_ip_ranges" { type = set(string) }
 variable "azure_policy_enabled" { type = bool }
 variable "log_analytics_workspace_id" { type = string }

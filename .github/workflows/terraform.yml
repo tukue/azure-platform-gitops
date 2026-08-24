@@ -34,7 +34,7 @@ jobs:
     if: >-
       vars.AZURE_CLIENT_ID != '' && vars.AZURE_TENANT_ID != '' &&
       vars.AZURE_SUBSCRIPTION_ID != '' && vars.AZURE_PRINCIPAL_ID != '' &&
-      vars.TF_ADMIN_GROUP_OBJECT_IDS != ''
+      vars.TF_ADMIN_GROUP_OBJECT_IDS != '' && vars.KEY_VAULT_NAME != ''
     runs-on: ubuntu-latest
     environment: dev
     defaults:
@@ -51,10 +51,12 @@ jobs:
       TF_VAR_environment: dev
       TF_VAR_location: swedencentral
       TF_VAR_acr_name: ${{ vars.ACR_NAME }}
+      TF_VAR_key_vault_name: ${{ vars.KEY_VAULT_NAME }}
       TF_VAR_admin_group_object_ids: ${{ vars.TF_ADMIN_GROUP_OBJECT_IDS }}
       TF_VAR_github_actions_principal_id: ${{ vars.AZURE_PRINCIPAL_ID }}
       TF_VAR_vnet_address_space: 10.20.0.0/16
       TF_VAR_aks_subnet_address_prefix: 10.20.0.0/22
+      TF_VAR_private_endpoints_subnet_address_prefix: 10.20.4.0/24
       TF_VAR_private_cluster_enabled: false
       TF_VAR_api_server_authorized_ip_ranges: ${{ vars.AKS_API_SERVER_AUTHORIZED_IP_RANGES }}
     steps:

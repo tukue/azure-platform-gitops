@@ -11,6 +11,7 @@ spec:
     - https://github.com/tukue/azure-platform-gitops.git
     - https://kubernetes.github.io/ingress-nginx
     - https://charts.external-secrets.io
+    - https://charts.jetstack.io
   destinations:
     - namespace: argocd
       server: https://kubernetes.default.svc
@@ -19,6 +20,8 @@ spec:
     - namespace: ingress-nginx
       server: https://kubernetes.default.svc
     - namespace: external-secrets
+      server: https://kubernetes.default.svc
+    - namespace: cert-manager
       server: https://kubernetes.default.svc
     - namespace: kube-system
       server: https://kubernetes.default.svc

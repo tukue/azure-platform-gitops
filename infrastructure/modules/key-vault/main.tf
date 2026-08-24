@@ -6,29 +6,14 @@ resource "azurerm_key_vault" "this" {
   sku_name                      = "standard"
   rbac_authorization_enabled    = true
   public_network_access_enabled = false
-  purge_protection_enabled      = false
-  soft_delete_retention_days    = 7
+  purge_protection_enabled      = var.purge_protection_enabled
+  soft_delete_retention_days    = var.soft_delete_retention_days
   tags                          = var.tags
 
   network_acls {
     bypass         = "AzureServices"
     default_action = "Deny"
   }
-}
-
-resource "azurerm_private_dns_zone" "key_vault" {
-  name                = "privatelink.vaultcore.azure.net"
-  resource_group_name = var.resource_group_name
-  tags                = var.tags
-}
-
-resource "azurerm_private_dns_zone_virtual_network_link" "key_vault" {
-  name                  = "pdnslink-${var.name}"
-  resource_group_name   = var.resource_group_name
-  private_dns_zone_name = azurerm_private_dns_zone.key_vault.name
-  virtual_network_id    = var.virtual_network_id
-  registration_enabled  = false
-  tags                  = var.tags
 }
 
 resource "azurerm_private_endpoint" "key_vault" {
@@ -47,7 +32,7 @@ resource "azurerm_private_endpoint" "key_vault" {
 
   private_dns_zone_group {
     name                 = "default"
-    private_dns_zone_ids = [azurerm_private_dns_zone.key_vault.id]
+    private_dns_zone_ids = [var.private_dns_zone_id]
   }
 }
 

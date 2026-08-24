@@ -12,6 +12,8 @@ This repository is a focused reference implementation for an Azure platform deli
 - Azure-native observability: Container Insights, Log Analytics, Managed Prometheus, Azure Managed Grafana, selected diagnostics, and two operational alerts.
 - Azure Key Vault secret injection through Argo CD-managed External Secrets Operator and AKS Workload Identity; values never enter Git or Terraform state.
 - Policy as code: Conftest/Rego validates rendered GitOps manifests in CI, and Terraform enables the AKS Azure Policy add-on for centrally managed audit-first runtime guardrails.
+- Production-security foundation: Basic ACR, private Key Vault, security diagnostics, and production deletion protection.
+- Regulated-security capabilities: opt-in AKS disk CMK/Disk Encryption Set, Azure Managed HSM, Azure Firewall egress, Azure Monitor Private Link Scope, and GitOps-managed certificate controller. These capabilities are implemented in Terraform/GitOps but not Azure-deployment-verified.
 - A minimal FastAPI `/health` and `/metrics` service with probes, resource controls, hardened pod settings, and an internal ingress route.
 - Architecture decision records and an explicit Argo CD bootstrap command.
 
@@ -30,6 +32,10 @@ flowchart LR
     AZ --> AMW[Azure Monitor Workspace]
     AZ --> AMG[Azure Managed Grafana]
     AZ --> KV[Private Azure Key Vault]
+    AZ --> CMK[Dedicated CMK Key Vault and Disk Encryption Set]
+    AZ --> HSM[Azure Managed HSM]
+    AZ --> FW[Azure Firewall]
+    AZ --> AMPLS[Azure Monitor Private Link Scope]
 
     GIT --> ARGO[Argo CD]
     ARGO --> PLATFORM[Platform configuration]
@@ -42,11 +48,16 @@ flowchart LR
     ESO --> APP
 
     AKS --> CI_LOGS[Container Insights]
+    AKS --> FW
     CI_LOGS --> LAW
     AKS --> PROM[Managed Prometheus]
     PROM --> AMW
+    LAW --> AMPLS
+    AMW --> AMPLS
+    AMG --> AMPLS
     AMW --> AMG
     LAW --> ALERTS[Azure Monitor alerts]
+    ARGO --> CERT[cert-manager]
 ```
 
 Terraform owns Azure resources and Azure RBAC. Argo CD owns Kubernetes resources. GitHub Actions builds and validates, but never deploys with `kubectl apply`.
@@ -75,7 +86,7 @@ On Windows, run the individual Terraform commands if `make` is unavailable, or i
 
 ## Azure foundation
 
-Copy `infrastructure/environments/dev/dev.tfvars.example` to `dev.tfvars`, replace every placeholder, and keep that file uncommitted. Public AKS API access requires explicit administrator CIDRs. Leave `kubernetes_version = null` to accept Azure's currently supported default, or pin a version that has been tested in the target region. For production-like networking, set `private_cluster_enabled = true` and provide private connectivity before obtaining kubeconfig.
+Copy `infrastructure/environments/dev/dev.example.tfvars` to `dev.tfvars`, replace every placeholder, and keep that file uncommitted. Public AKS API access requires explicit administrator CIDRs. Leave `kubernetes_version = null` to accept Azure's currently supported default, or pin a version that has been tested in the target region. For production-like networking, set `private_cluster_enabled = true` and provide private connectivity before obtaining kubeconfig.
 
 ```bash
 make init
@@ -129,9 +140,28 @@ AKS sends container logs to Azure Monitor Container Insights and `law-<project>-
 
 Terraform provides a private, RBAC-enabled Azure Key Vault with a private endpoint and a narrowly scoped federated managed identity. Argo CD installs External Secrets Operator and reconciles secret references; it does not store values. Populate Key Vault secrets from an approved private-network operator workflow, then allow the operator to synchronize them into the target namespace. See [Azure Key Vault secret management](docs/secret-management.md) for the required identifier configuration, rotation workflow, security boundary, and troubleshooting steps.
 
+## Production security foundation
+
+The baseline production profile uses private AKS access, Basic ACR, private Key Vault, 90-day Key Vault soft-delete retention, purge protection, and selected security diagnostics. Basic ACR preserves GitHub-hosted image publishing. See [production security foundation](docs/production-security-foundation.md) for values, DNS checks, and operational controls.
+
 ## Policy as code
 
 GitHub Actions renders Argo CD sources and uses Conftest/Rego to block insecure workload declarations before merge. Terraform enables the AKS Azure Policy add-on for organization-managed Kubernetes policy assignments. Introduce Azure Policy assignments in audit mode, review results, then enforce selected controls; do not install a standalone Gatekeeper alongside the Azure add-on. See [policy as code](docs/policy-as-code.md) for the baseline rules, local commands, ownership, and exception workflow.
+
+## Regulated security profile
+
+The optional regulated profile adds a dedicated CMK Key Vault and Disk Encryption Set, Azure Managed HSM for CA/signing-key workloads, Azure Firewall with UDR-based AKS egress, Azure Monitor Private Link Scope, and GitOps-managed `cert-manager`.
+
+| Capability | Owner | Activation constraint |
+| --- | --- | --- |
+| AKS disk CMK | Terraform | Create or migrate to a replacement private cluster. |
+| Basic ACR | Terraform | Public publishing path is required for GitHub-hosted runners. |
+| Managed HSM | Terraform | Define security-domain administrators, quorum, backup, and recovery ownership. |
+| Firewall egress | Terraform | Review required FQDNs, DNS, routes, and denied-flow monitoring. |
+| AMPLS | Terraform | Validate private DNS and Grafana managed private endpoint connectivity. |
+| Public ACME certificates | Argo CD | Provide delegated DNS, ACME email, and DNS Workload Identity. |
+
+See the [regulated security profile](docs/regulated-security-profile.md) and [certificate management](docs/certificate-management.md) before enabling these controls.
 
 ## Cleanup
 
@@ -150,8 +180,9 @@ Destroying AKS also removes Argo CD and all workloads. Review the Terraform plan
 - Implemented state storage is local only; shared environments need a protected remote state backend.
 - Image-tag promotion remains a pull-request step after immutable ACR image publication.
 - The sample uses one system node pool, Basic ACR, and no availability-zone strategy.
-- Observability services default to private-only access, but the required private endpoints, private DNS, and Azure Monitor Private Link Scope are not yet provisioned. Add them before Azure deployment.
-- Key Vault private endpoint and private DNS are implemented; private endpoints for observability services remain a future improvement before private-only observability deployment.
+- The regulated modules and AMPLS configuration are locally validated only; Azure deployment, private DNS resolution, Grafana private queries, and AKS telemetry ingestion still require verification in a target subscription.
+- The Basic ACR profile does not provide ACR Private Link or ACR CMK. AKS disk CMK remains available through the dedicated Standard Key Vault.
+- `cert-manager` is installed declaratively, but no production `ClusterIssuer` is configured until a delegated DNS zone and ACME registration details are supplied.
 - Future work can add dashboard-as-code, action groups, dedicated workload node pools, backup/disaster recovery, image scanning, and Git-based image promotion automation after operating requirements justify them.
 
 See [the ADRs](docs/adr) for the reasoning behind AKS, Argo CD, ownership boundaries, federated identity, Azure-native observability, and Key Vault secret injection.
