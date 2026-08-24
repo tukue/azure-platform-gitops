@@ -16,5 +16,9 @@ variable "additional_allowed_fqdns" {
     "login.microsoftonline.com",
     "management.azure.com",
   ]
+  validation {
+    condition     = length(var.additional_allowed_fqdns) > 0
+    error_message = "additional_allowed_fqdns must contain at least one approved FQDN when Azure Firewall is enabled."
+  }
 }
 variable "tags" { type = map(string) }
