@@ -20,8 +20,8 @@ resource "terraform_data" "cmk_configuration" {
 
   lifecycle {
     precondition {
-      condition     = !var.cmk_enabled || (var.cmk_key_vault_name != null && var.private_cluster_enabled && var.acr_sku == "Premium")
-      error_message = "CMK requires a private AKS cluster, Premium ACR, and cmk_key_vault_name."
+      condition     = !var.cmk_enabled || (var.cmk_key_vault_name != null && var.private_cluster_enabled)
+      error_message = "CMK requires a private AKS cluster and cmk_key_vault_name."
     }
   }
 }
@@ -160,13 +160,6 @@ module "acr" {
   resource_group_name           = azurerm_resource_group.this.name
   sku                           = var.acr_sku
   public_network_access_enabled = var.acr_public_network_access_enabled
-  private_endpoint_enabled      = var.acr_private_endpoint_enabled
-  private_endpoint_subnet_id    = module.networking.private_endpoints_subnet_id
-  virtual_network_id            = module.networking.vnet_id
-  customer_managed_key_enabled  = var.cmk_enabled
-  customer_managed_key_id       = var.cmk_enabled ? module.cmk[0].key_id : null
-  encryption_identity_id        = var.cmk_enabled ? module.cmk[0].acr_encryption_identity_id : null
-  encryption_identity_client_id = var.cmk_enabled ? module.cmk[0].acr_encryption_identity_client_id : null
   tags                          = local.common_tags
 }
 

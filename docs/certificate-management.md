@@ -19,7 +19,7 @@ Create the issuer through a reviewed GitOps change after these values are availa
 
 The Terraform `managed-hsm` module creates a separate, private Azure Managed HSM with purge protection and a trusted Entra administrator set. It is reserved for CA/signing-key workloads that require HSM-backed custody. Managed HSM is not itself a certificate authority: an enterprise CA or PKI service must be selected to issue certificates and use the HSM-backed key material.
 
-This separation is intentional. Application secrets remain in Azure Key Vault, service-encryption CMKs remain in the dedicated CMK Key Vault, and CA/signing keys can be governed through Managed HSM with distinct administrators and recovery procedures.
+This separation is intentional. Application secrets remain in Azure Key Vault, AKS disk CMKs remain in the dedicated Standard CMK Key Vault, and CA/signing keys can be governed through Managed HSM with distinct administrators and recovery procedures.
 
 ## Certificate lifecycle controls
 

@@ -24,7 +24,6 @@ api_server_authorized_ip_ranges             = ["203.0.113.10/32"]
 azure_policy_enabled                        = true
 acr_sku                                     = "Basic"
 acr_public_network_access_enabled           = true
-acr_private_endpoint_enabled                = false
 key_vault_purge_protection_enabled          = false
 key_vault_soft_delete_retention_days        = 7
 log_analytics_retention_in_days             = 30

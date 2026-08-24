@@ -39,7 +39,7 @@ variable "cmk_key_vault_name" {
   type        = string
   default     = null
   nullable    = true
-  description = "Globally unique name for the dedicated Premium Key Vault that stores CMK material. Required when cmk_enabled is true."
+  description = "Globally unique name for the dedicated Standard Key Vault that stores AKS disk CMK material. Required when cmk_enabled is true."
 }
 variable "managed_hsm_enabled" {
   type        = bool
@@ -112,11 +112,6 @@ variable "acr_sku" {
 variable "acr_public_network_access_enabled" {
   type    = bool
   default = true
-}
-variable "acr_private_endpoint_enabled" {
-  type        = bool
-  default     = false
-  description = "Creates ACR Private Link. Requires acr_sku = Premium and acr_public_network_access_enabled = false."
 }
 variable "key_vault_purge_protection_enabled" {
   type        = bool

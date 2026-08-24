@@ -12,9 +12,8 @@ Use these values only in a new or migration-planned production environment. Do n
 private_cluster_enabled                     = true
 cmk_enabled                                = true
 cmk_key_vault_name                         = "kv-platform-prod-cmk"
-acr_sku                                    = "Premium"
-acr_public_network_access_enabled          = false
-acr_private_endpoint_enabled               = true
+acr_sku                                    = "Basic"
+acr_public_network_access_enabled          = true
 managed_hsm_enabled                        = true
 managed_hsm_name                           = "mhsm-platform-prod"
 managed_hsm_admin_object_ids               = ["<entra-group-object-id>"]
@@ -30,10 +29,10 @@ key_vault_soft_delete_retention_days       = 90
 
 ## Key custody
 
-- The dedicated Premium CMK Key Vault stores the RSA-HSM key used by the Disk Encryption Set and ACR encryption identity.
+- The dedicated Standard CMK Key Vault stores the RSA key used by the Disk Encryption Set.
 - Application secrets remain in the separate private Key Vault consumed by External Secrets Operator.
 - Managed HSM is reserved for CA, signing, or BYOK keys with a separately governed security domain and Entra administrator group.
-- ACR CMK and Private Link require Premium. The standard Basic profile remains available for development and GitHub-hosted build runners.
+- Basic ACR remains public for GitHub-hosted build runners. It does not use CMK or Private Link in this reference profile.
 
 ## Migration and recovery
 

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This platform uses Azure Private Link for Key Vault. Azure diagnostics forward Key Vault audit events, selected ACR events, and AKS control-plane events to Log Analytics. ACR Private Link is supported by the Terraform module but is not enabled in the Basic SKU profile.
+This platform uses Azure Private Link for Key Vault. Azure diagnostics forward Key Vault audit events, selected ACR events, and AKS control-plane events to Log Analytics. ACR remains on the Basic SKU for a low-cost registry and GitHub-hosted build compatibility.
 
 ## Production profile
 
@@ -13,14 +13,13 @@ private_cluster_enabled                 = true
 api_server_authorized_ip_ranges         = []
 acr_sku                                 = "Basic"
 acr_public_network_access_enabled       = true
-acr_private_endpoint_enabled            = false
 key_vault_purge_protection_enabled      = true
 key_vault_soft_delete_retention_days    = 90
 observability_public_network_access_enabled = false
 grafana_public_network_access_enabled       = false
 ```
 
-The Basic ACR profile keeps public registry access enabled so GitHub-hosted runners can publish images. Registry administrator credentials remain disabled and AKS pulls through its least-privilege kubelet identity with `AcrPull`. ACR Private Link remains an optional future upgrade because it requires Premium SKU and a private build path.
+The Basic ACR profile keeps public registry access enabled so GitHub-hosted runners can publish images. Registry administrator credentials remain disabled and AKS pulls through its least-privilege kubelet identity with `AcrPull`.
 
 Key Vault public access is disabled. Purge protection makes permanent deletion impossible until soft-delete retention ends, which is expected production behavior and must be considered during environment teardown.
 

@@ -3,7 +3,7 @@ resource "azurerm_key_vault" "this" {
   location                      = var.location
   resource_group_name           = var.resource_group_name
   tenant_id                     = var.tenant_id
-  sku_name                      = "premium"
+  sku_name                      = "standard"
   rbac_authorization_enabled    = true
   public_network_access_enabled = false
   purge_protection_enabled      = true
@@ -39,7 +39,7 @@ resource "azurerm_private_endpoint" "this" {
 resource "azurerm_key_vault_key" "platform_encryption" {
   name         = "platform-encryption"
   key_vault_id = azurerm_key_vault.this.id
-  key_type     = "RSA-HSM"
+  key_type     = "RSA"
   key_size     = 3072
   key_opts     = ["decrypt", "encrypt", "sign", "unwrapKey", "verify", "wrapKey"]
   tags         = var.tags
@@ -52,19 +52,6 @@ resource "azurerm_key_vault_key" "platform_encryption" {
       time_before_expiry = "P90D"
     }
   }
-}
-
-resource "azurerm_user_assigned_identity" "acr_encryption" {
-  name                = "id-${var.name_prefix}-acr-cmk"
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  tags                = var.tags
-}
-
-resource "azurerm_role_assignment" "acr_encryption_key_access" {
-  scope                = azurerm_key_vault.this.id
-  role_definition_name = "Key Vault Crypto Service Encryption User"
-  principal_id         = azurerm_user_assigned_identity.acr_encryption.principal_id
 }
 
 resource "azurerm_disk_encryption_set" "aks" {

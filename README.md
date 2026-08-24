@@ -12,8 +12,8 @@ This repository is a focused reference implementation for an Azure platform deli
 - Azure-native observability: Container Insights, Log Analytics, Managed Prometheus, Azure Managed Grafana, selected diagnostics, and two operational alerts.
 - Azure Key Vault secret injection through Argo CD-managed External Secrets Operator and AKS Workload Identity; values never enter Git or Terraform state.
 - Policy as code: Conftest/Rego validates rendered GitOps manifests in CI, and Terraform enables the AKS Azure Policy add-on for centrally managed audit-first runtime guardrails.
-- Production-security foundation: private Key Vault, security diagnostics, and documented Basic ACR trade-offs plus production deletion protection.
-- Regulated-security capabilities: opt-in CMK/Disk Encryption Set, Azure Managed HSM, Azure Firewall egress, Azure Monitor Private Link Scope, and GitOps-managed certificate controller. These capabilities are implemented in Terraform/GitOps but not Azure-deployment-verified.
+- Production-security foundation: Basic ACR, private Key Vault, security diagnostics, and production deletion protection.
+- Regulated-security capabilities: opt-in AKS disk CMK/Disk Encryption Set, Azure Managed HSM, Azure Firewall egress, Azure Monitor Private Link Scope, and GitOps-managed certificate controller. These capabilities are implemented in Terraform/GitOps but not Azure-deployment-verified.
 - A minimal FastAPI `/health` and `/metrics` service with probes, resource controls, hardened pod settings, and an internal ingress route.
 - Architecture decision records and an explicit Argo CD bootstrap command.
 
@@ -142,7 +142,7 @@ Terraform provides a private, RBAC-enabled Azure Key Vault with a private endpoi
 
 ## Production security foundation
 
-The baseline production profile uses private AKS access, Basic ACR, private Key Vault, 90-day Key Vault soft-delete retention, purge protection, and selected security diagnostics. Basic ACR preserves GitHub-hosted image publishing but cannot use ACR Private Link or ACR CMK. See [production security foundation](docs/production-security-foundation.md) for values, DNS checks, and operational controls.
+The baseline production profile uses private AKS access, Basic ACR, private Key Vault, 90-day Key Vault soft-delete retention, purge protection, and selected security diagnostics. Basic ACR preserves GitHub-hosted image publishing. See [production security foundation](docs/production-security-foundation.md) for values, DNS checks, and operational controls.
 
 ## Policy as code
 
@@ -155,7 +155,7 @@ The optional regulated profile adds a dedicated CMK Key Vault and Disk Encryptio
 | Capability | Owner | Activation constraint |
 | --- | --- | --- |
 | AKS disk CMK | Terraform | Create or migrate to a replacement private cluster. |
-| ACR CMK and Private Link | Terraform | Upgrade ACR to Premium and use a private build path. |
+| Basic ACR | Terraform | Public publishing path is required for GitHub-hosted runners. |
 | Managed HSM | Terraform | Define security-domain administrators, quorum, backup, and recovery ownership. |
 | Firewall egress | Terraform | Review required FQDNs, DNS, routes, and denied-flow monitoring. |
 | AMPLS | Terraform | Validate private DNS and Grafana managed private endpoint connectivity. |
@@ -181,7 +181,7 @@ Destroying AKS also removes Argo CD and all workloads. Review the Terraform plan
 - Image-tag promotion remains a pull-request step after immutable ACR image publication.
 - The sample uses one system node pool, Basic ACR, and no availability-zone strategy.
 - The regulated modules and AMPLS configuration are locally validated only; Azure deployment, private DNS resolution, Grafana private queries, and AKS telemetry ingestion still require verification in a target subscription.
-- The default profile uses Basic ACR for GitHub-hosted publishing. Private registry access and ACR CMK require a Premium upgrade and private build connectivity.
+- The Basic ACR profile does not provide ACR Private Link or ACR CMK. AKS disk CMK remains available through the dedicated Standard Key Vault.
 - `cert-manager` is installed declaratively, but no production `ClusterIssuer` is configured until a delegated DNS zone and ACME registration details are supplied.
 - Future work can add dashboard-as-code, action groups, dedicated workload node pools, backup/disaster recovery, image scanning, and Git-based image promotion automation after operating requirements justify them.
 

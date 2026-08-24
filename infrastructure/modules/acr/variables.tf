@@ -11,42 +11,9 @@ variable "sku" {
   type    = string
   default = "Basic"
   validation {
-    condition     = contains(["Basic", "Standard", "Premium"], var.sku)
-    error_message = "ACR SKU must be Basic, Standard, or Premium."
+    condition     = var.sku == "Basic"
+    error_message = "This reference platform uses the Basic ACR SKU."
   }
 }
 variable "public_network_access_enabled" { type = bool }
-variable "private_endpoint_enabled" {
-  type    = bool
-  default = false
-}
-variable "private_endpoint_subnet_id" {
-  type     = string
-  default  = null
-  nullable = true
-}
-variable "virtual_network_id" {
-  type     = string
-  default  = null
-  nullable = true
-}
-variable "customer_managed_key_enabled" {
-  type    = bool
-  default = false
-}
-variable "customer_managed_key_id" {
-  type     = string
-  default  = null
-  nullable = true
-}
-variable "encryption_identity_id" {
-  type     = string
-  default  = null
-  nullable = true
-}
-variable "encryption_identity_client_id" {
-  type     = string
-  default  = null
-  nullable = true
-}
 variable "tags" { type = map(string) }
