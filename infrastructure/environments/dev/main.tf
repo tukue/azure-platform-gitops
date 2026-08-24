@@ -15,6 +15,50 @@ resource "azurerm_resource_group" "this" {
 
 data "azurerm_client_config" "current" {}
 
+resource "terraform_data" "cmk_configuration" {
+  input = var.cmk_enabled
+
+  lifecycle {
+    precondition {
+      condition     = !var.cmk_enabled || (var.cmk_key_vault_name != null && var.private_cluster_enabled && var.acr_sku == "Premium")
+      error_message = "CMK requires a private AKS cluster, Premium ACR, and cmk_key_vault_name."
+    }
+  }
+}
+
+resource "terraform_data" "managed_hsm_configuration" {
+  input = var.managed_hsm_enabled
+
+  lifecycle {
+    precondition {
+      condition     = !var.managed_hsm_enabled || (var.managed_hsm_name != null && length(var.managed_hsm_admin_object_ids) > 0)
+      error_message = "Managed HSM requires managed_hsm_name and one or more trusted Entra administrator object IDs."
+    }
+  }
+}
+
+resource "terraform_data" "firewall_configuration" {
+  input = var.firewall_enabled
+
+  lifecycle {
+    precondition {
+      condition     = !var.firewall_enabled || (var.private_cluster_enabled && var.firewall_subnet_address_prefix != null)
+      error_message = "Azure Firewall egress requires a private AKS cluster and firewall_subnet_address_prefix."
+    }
+  }
+}
+
+resource "terraform_data" "monitor_private_link_configuration" {
+  input = var.observability_private_link_enabled
+
+  lifecycle {
+    precondition {
+      condition     = !var.observability_private_link_enabled || (!var.observability_public_network_access_enabled && !var.grafana_public_network_access_enabled)
+      error_message = "AMPLS requires public access disabled for Azure Monitor Workspace, DCE, and Grafana."
+    }
+  }
+}
+
 module "networking" {
   source                                  = "../../modules/networking"
   name                                    = "vnet-${local.name_prefix}"
@@ -23,7 +67,44 @@ module "networking" {
   address_space                           = var.vnet_address_space
   aks_subnet_address_prefix               = var.aks_subnet_address_prefix
   private_endpoints_subnet_address_prefix = var.private_endpoints_subnet_address_prefix
+  firewall_enabled                        = var.firewall_enabled
+  firewall_subnet_address_prefix          = var.firewall_subnet_address_prefix
   tags                                    = local.common_tags
+}
+
+module "firewall" {
+  count = var.firewall_enabled ? 1 : 0
+
+  source                    = "../../modules/firewall"
+  name                      = local.name_prefix
+  location                  = azurerm_resource_group.this.location
+  resource_group_name       = azurerm_resource_group.this.name
+  firewall_subnet_id        = module.networking.firewall_subnet_id
+  aks_subnet_address_prefix = var.aks_subnet_address_prefix
+  zones                     = var.availability_zones
+  tags                      = local.common_tags
+
+  depends_on = [terraform_data.firewall_configuration]
+}
+
+resource "azurerm_route" "aks_default_egress" {
+  count = var.firewall_enabled ? 1 : 0
+
+  name                   = "default-egress"
+  resource_group_name    = azurerm_resource_group.this.name
+  route_table_name       = module.firewall[0].route_table_name
+  address_prefix         = "0.0.0.0/0"
+  next_hop_type          = "VirtualAppliance"
+  next_hop_in_ip_address = module.firewall[0].private_ip_address
+}
+
+resource "azurerm_subnet_route_table_association" "aks" {
+  count = var.firewall_enabled ? 1 : 0
+
+  subnet_id      = module.networking.aks_subnet_id
+  route_table_id = module.firewall[0].route_table_id
+
+  depends_on = [azurerm_route.aks_default_egress]
 }
 
 module "key_vault" {
@@ -32,12 +113,44 @@ module "key_vault" {
   location                   = azurerm_resource_group.this.location
   resource_group_name        = azurerm_resource_group.this.name
   tenant_id                  = data.azurerm_client_config.current.tenant_id
-  virtual_network_id         = module.networking.vnet_id
   private_endpoint_subnet_id = module.networking.private_endpoints_subnet_id
+  private_dns_zone_id        = module.networking.key_vault_private_dns_zone_id
   oidc_issuer_url            = module.aks.oidc_issuer_url
   purge_protection_enabled   = var.key_vault_purge_protection_enabled
   soft_delete_retention_days = var.key_vault_soft_delete_retention_days
   tags                       = local.common_tags
+}
+
+module "cmk" {
+  count = var.cmk_enabled ? 1 : 0
+
+  source                        = "../../modules/cmk"
+  name_prefix                   = local.name_prefix
+  key_vault_name                = var.cmk_key_vault_name
+  location                      = azurerm_resource_group.this.location
+  resource_group_name           = azurerm_resource_group.this.name
+  tenant_id                     = data.azurerm_client_config.current.tenant_id
+  private_endpoint_subnet_id    = module.networking.private_endpoints_subnet_id
+  key_vault_private_dns_zone_id = module.networking.key_vault_private_dns_zone_id
+  tags                          = local.common_tags
+
+  depends_on = [terraform_data.cmk_configuration]
+}
+
+module "managed_hsm" {
+  count = var.managed_hsm_enabled ? 1 : 0
+
+  source                     = "../../modules/managed-hsm"
+  name                       = var.managed_hsm_name
+  location                   = azurerm_resource_group.this.location
+  resource_group_name        = azurerm_resource_group.this.name
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  admin_object_ids           = var.managed_hsm_admin_object_ids
+  virtual_network_id         = module.networking.vnet_id
+  private_endpoint_subnet_id = module.networking.private_endpoints_subnet_id
+  tags                       = local.common_tags
+
+  depends_on = [terraform_data.managed_hsm_configuration]
 }
 
 module "acr" {
@@ -50,6 +163,10 @@ module "acr" {
   private_endpoint_enabled      = var.acr_private_endpoint_enabled
   private_endpoint_subnet_id    = module.networking.private_endpoints_subnet_id
   virtual_network_id            = module.networking.vnet_id
+  customer_managed_key_enabled  = var.cmk_enabled
+  customer_managed_key_id       = var.cmk_enabled ? module.cmk[0].key_id : null
+  encryption_identity_id        = var.cmk_enabled ? module.cmk[0].acr_encryption_identity_id : null
+  encryption_identity_client_id = var.cmk_enabled ? module.cmk[0].acr_encryption_identity_client_id : null
   tags                          = local.common_tags
 }
 
@@ -67,6 +184,35 @@ module "observability" {
   tags                                  = local.common_tags
 }
 
+module "monitor_private_link" {
+  count = var.observability_private_link_enabled ? 1 : 0
+
+  source                      = "../../modules/monitor-private-link"
+  name                        = "ampls-${local.name_prefix}"
+  location                    = azurerm_resource_group.this.location
+  resource_group_name         = azurerm_resource_group.this.name
+  virtual_network_id          = module.networking.vnet_id
+  private_endpoint_subnet_id  = module.networking.private_endpoints_subnet_id
+  log_analytics_workspace_id  = module.observability.log_analytics_workspace_id
+  monitor_workspace_id        = module.observability.monitor_workspace_id
+  data_collection_endpoint_id = module.observability.prometheus_data_collection_endpoint_id
+  tags                        = local.common_tags
+
+  depends_on = [terraform_data.monitor_private_link_configuration]
+}
+
+resource "azurerm_dashboard_grafana_managed_private_endpoint" "monitor" {
+  count = var.observability_private_link_enabled ? 1 : 0
+
+  name                         = "ampls"
+  grafana_id                   = module.observability.grafana_id
+  location                     = azurerm_resource_group.this.location
+  private_link_resource_id     = module.monitor_private_link[0].id
+  private_link_resource_region = azurerm_resource_group.this.location
+  group_ids                    = ["azuremonitor"]
+  tags                         = local.common_tags
+}
+
 module "aks" {
   source                          = "../../modules/aks"
   name                            = "aks-${local.name_prefix}"
@@ -77,6 +223,8 @@ module "aks" {
   subnet_id                       = module.networking.aks_subnet_id
   admin_group_object_ids          = var.admin_group_object_ids
   private_cluster_enabled         = var.private_cluster_enabled
+  outbound_type                   = var.firewall_enabled ? "userDefinedRouting" : "loadBalancer"
+  disk_encryption_set_id          = var.cmk_enabled ? module.cmk[0].disk_encryption_set_id : null
   api_server_authorized_ip_ranges = var.api_server_authorized_ip_ranges
   azure_policy_enabled            = var.azure_policy_enabled
   log_analytics_workspace_id      = module.observability.log_analytics_workspace_id
@@ -86,6 +234,16 @@ module "aks" {
   system_node_min_count           = var.system_node_min_count
   system_node_max_count           = var.system_node_max_count
   tags                            = local.common_tags
+
+  depends_on = [azurerm_subnet_route_table_association.aks]
+}
+
+resource "azurerm_role_assignment" "aks_disk_encryption_set_reader" {
+  count = var.cmk_enabled ? 1 : 0
+
+  scope                = module.cmk[0].disk_encryption_set_id
+  role_definition_name = "Reader"
+  principal_id         = module.aks.identity_principal_id
 }
 
 resource "azurerm_role_assignment" "aks_kubelet_acr_pull" {

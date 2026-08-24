@@ -30,6 +30,49 @@ variable "vnet_address_space" { type = string }
 variable "aks_subnet_address_prefix" { type = string }
 variable "private_endpoints_subnet_address_prefix" { type = string }
 variable "private_cluster_enabled" { type = bool }
+variable "cmk_enabled" {
+  type        = bool
+  default     = false
+  description = "Enables AKS disk and ACR customer-managed key resources. Enabling AKS disk encryption on an existing cluster requires replacement planning."
+}
+variable "cmk_key_vault_name" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Globally unique name for the dedicated Premium Key Vault that stores CMK material. Required when cmk_enabled is true."
+}
+variable "managed_hsm_enabled" {
+  type        = bool
+  default     = false
+  description = "Creates a private Azure Managed HSM for CA or signing-key workloads after explicit cost and administrator approval."
+}
+variable "managed_hsm_name" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Globally unique Azure Managed HSM name. Required when managed_hsm_enabled is true."
+}
+variable "managed_hsm_admin_object_ids" {
+  type        = set(string)
+  default     = []
+  description = "Trusted Entra object IDs that administer the Managed HSM security domain."
+}
+variable "firewall_enabled" {
+  type        = bool
+  default     = false
+  description = "Routes AKS egress through Azure Firewall and requires a reviewed FQDN allowlist before production use."
+}
+variable "firewall_subnet_address_prefix" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "CIDR for AzureFirewallSubnet. Azure Firewall requires a dedicated /26 or larger subnet."
+}
+variable "availability_zones" {
+  type        = list(string)
+  default     = []
+  description = "Availability zones for supported production resources, for example [\"1\", \"2\", \"3\"]."
+}
 variable "api_server_authorized_ip_ranges" { type = set(string) }
 variable "azure_policy_enabled" {
   type        = bool
@@ -47,6 +90,11 @@ variable "log_analytics_retention_in_days" {
 variable "observability_public_network_access_enabled" {
   type    = bool
   default = false
+}
+variable "observability_private_link_enabled" {
+  type        = bool
+  default     = true
+  description = "Creates Azure Monitor Private Link Scope, private DNS zones, and a Managed Grafana private endpoint."
 }
 variable "grafana_public_network_access_enabled" {
   type    = bool

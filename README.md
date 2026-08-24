@@ -13,6 +13,7 @@ This repository is a focused reference implementation for an Azure platform deli
 - Azure Key Vault secret injection through Argo CD-managed External Secrets Operator and AKS Workload Identity; values never enter Git or Terraform state.
 - Policy as code: Conftest/Rego validates rendered GitOps manifests in CI, and Terraform enables the AKS Azure Policy add-on for centrally managed audit-first runtime guardrails.
 - Production-security foundation: private Key Vault, security diagnostics, and documented Basic ACR trade-offs plus production deletion protection.
+- Regulated-security capabilities: opt-in CMK/Disk Encryption Set, Azure Managed HSM, Azure Firewall egress, Azure Monitor Private Link Scope, and GitOps-managed certificate controller.
 - A minimal FastAPI `/health` and `/metrics` service with probes, resource controls, hardened pod settings, and an internal ingress route.
 - Architecture decision records and an explicit Argo CD bootstrap command.
 
@@ -137,6 +138,10 @@ The production profile uses private AKS access, Basic ACR, private Key Vault, 90
 ## Policy as code
 
 GitHub Actions renders Argo CD sources and uses Conftest/Rego to block insecure workload declarations before merge. Terraform enables the AKS Azure Policy add-on for organization-managed Kubernetes policy assignments. Introduce Azure Policy assignments in audit mode, review results, then enforce selected controls; do not install a standalone Gatekeeper alongside the Azure add-on. See [policy as code](docs/policy-as-code.md) for the baseline rules, local commands, ownership, and exception workflow.
+
+## Regulated security profile
+
+The optional regulated profile adds a dedicated CMK Key Vault and Disk Encryption Set, Azure Managed HSM for CA/signing-key workloads, Azure Firewall with UDR-based AKS egress, Azure Monitor Private Link Scope, and GitOps-managed `cert-manager`. CMK and firewall enablement require an explicit migration and egress review; ACR CMK requires Premium SKU. See the [regulated security profile](docs/regulated-security-profile.md), [certificate management](docs/certificate-management.md), and production security guide before enabling these controls.
 
 ## Cleanup
 

@@ -10,6 +10,7 @@ resource "azurerm_kubernetes_cluster" "this" {
   oidc_issuer_enabled               = true
   workload_identity_enabled         = true
   private_cluster_enabled           = var.private_cluster_enabled
+  disk_encryption_set_id            = var.disk_encryption_set_id
   tags                              = var.tags
 
   identity { type = "SystemAssigned" }
@@ -51,13 +52,17 @@ resource "azurerm_kubernetes_cluster" "this" {
     network_plugin_mode = "overlay"
     network_policy      = "azure"
     load_balancer_sku   = "standard"
-    outbound_type       = "loadBalancer"
+    outbound_type       = var.outbound_type
   }
 
   lifecycle {
     precondition {
       condition     = var.private_cluster_enabled || length(var.api_server_authorized_ip_ranges) > 0
       error_message = "Public AKS API access requires one or more authorized IP ranges."
+    }
+    precondition {
+      condition     = var.disk_encryption_set_id == null || var.private_cluster_enabled
+      error_message = "AKS CMK is intended for the private production cluster profile."
     }
   }
 }

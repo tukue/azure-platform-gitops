@@ -30,4 +30,23 @@ variable "virtual_network_id" {
   default  = null
   nullable = true
 }
+variable "customer_managed_key_enabled" {
+  type    = bool
+  default = false
+}
+variable "customer_managed_key_id" {
+  type     = string
+  default  = null
+  nullable = true
+}
+variable "encryption_identity_id" {
+  type     = string
+  default  = null
+  nullable = true
+}
+variable "encryption_identity_client_id" {
+  type     = string
+  default  = null
+  nullable = true
+}
 variable "tags" { type = map(string) }

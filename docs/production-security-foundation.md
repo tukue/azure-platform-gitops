@@ -45,4 +45,4 @@ Use a private DNS resolver and links to every VNet that needs access. Do not man
 
 ## Deliberate exclusions
 
-Azure Managed HSM, customer-managed keys, certificate authorities, Azure Firewall, and Azure Monitor Private Link Scope are not enabled in this iteration. They require workload-specific key ownership, network egress, compliance, and cost decisions. The Key Vault and Private Link patterns in this repository provide the foundation for adding them without changing Terraform or GitOps ownership boundaries.
+Azure Managed HSM, customer-managed keys, Azure Firewall, Azure Monitor Private Link Scope, and `cert-manager` are implemented as opt-in capabilities in the regulated security profile. They remain disabled by default because CMK can require AKS replacement, Firewall requires a reviewed egress allowlist, Managed HSM requires security-domain recovery ownership, and public ACME requires a delegated DNS zone. The Key Vault and Private Link patterns preserve Terraform ownership of Azure resources and Argo CD ownership of Kubernetes configuration.
