@@ -35,6 +35,8 @@ module "key_vault" {
   virtual_network_id         = module.networking.vnet_id
   private_endpoint_subnet_id = module.networking.private_endpoints_subnet_id
   oidc_issuer_url            = module.aks.oidc_issuer_url
+  purge_protection_enabled   = var.key_vault_purge_protection_enabled
+  soft_delete_retention_days = var.key_vault_soft_delete_retention_days
   tags                       = local.common_tags
 }
 
@@ -45,6 +47,9 @@ module "acr" {
   resource_group_name           = azurerm_resource_group.this.name
   sku                           = var.acr_sku
   public_network_access_enabled = var.acr_public_network_access_enabled
+  private_endpoint_enabled      = var.acr_private_endpoint_enabled
+  private_endpoint_subnet_id    = module.networking.private_endpoints_subnet_id
+  virtual_network_id            = module.networking.vnet_id
   tags                          = local.common_tags
 }
 
@@ -143,6 +148,10 @@ data "azurerm_monitor_diagnostic_categories" "acr" {
   resource_id = module.acr.id
 }
 
+data "azurerm_monitor_diagnostic_categories" "key_vault" {
+  resource_id = module.key_vault.id
+}
+
 locals {
   aks_diagnostic_log_categories = setintersection(
     toset(data.azurerm_monitor_diagnostic_categories.aks.log_category_types),
@@ -151,6 +160,10 @@ locals {
   acr_diagnostic_log_categories = setintersection(
     toset(data.azurerm_monitor_diagnostic_categories.acr.log_category_types),
     toset(["ContainerRegistryLoginEvents", "ContainerRegistryRepositoryEvents"])
+  )
+  key_vault_diagnostic_log_categories = setintersection(
+    toset(data.azurerm_monitor_diagnostic_categories.key_vault.log_category_types),
+    toset(["AuditEvent"])
   )
 }
 
@@ -174,6 +187,19 @@ resource "azurerm_monitor_diagnostic_setting" "acr" {
 
   dynamic "enabled_log" {
     for_each = local.acr_diagnostic_log_categories
+    content {
+      category = enabled_log.value
+    }
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "key_vault" {
+  name                       = "diag-${module.key_vault.name}"
+  target_resource_id         = module.key_vault.id
+  log_analytics_workspace_id = module.observability.log_analytics_workspace_id
+
+  dynamic "enabled_log" {
+    for_each = local.key_vault_diagnostic_log_categories
     content {
       category = enabled_log.value
     }

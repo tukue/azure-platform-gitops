@@ -65,6 +65,25 @@ variable "acr_public_network_access_enabled" {
   type    = bool
   default = true
 }
+variable "acr_private_endpoint_enabled" {
+  type        = bool
+  default     = false
+  description = "Creates ACR Private Link. Requires acr_sku = Premium and acr_public_network_access_enabled = false."
+}
+variable "key_vault_purge_protection_enabled" {
+  type        = bool
+  default     = false
+  description = "Enable for production. It prevents purging deleted Key Vaults until the retention period expires."
+}
+variable "key_vault_soft_delete_retention_days" {
+  type        = number
+  default     = 7
+  description = "Use 90 days for production Key Vaults."
+  validation {
+    condition     = var.key_vault_soft_delete_retention_days >= 7 && var.key_vault_soft_delete_retention_days <= 90
+    error_message = "Key Vault soft-delete retention must be between 7 and 90 days."
+  }
+}
 variable "system_node_vm_size" {
   type    = string
   default = "Standard_D4ds_v5"

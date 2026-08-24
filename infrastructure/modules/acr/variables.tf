@@ -16,4 +16,18 @@ variable "sku" {
   }
 }
 variable "public_network_access_enabled" { type = bool }
+variable "private_endpoint_enabled" {
+  type    = bool
+  default = false
+}
+variable "private_endpoint_subnet_id" {
+  type     = string
+  default  = null
+  nullable = true
+}
+variable "virtual_network_id" {
+  type     = string
+  default  = null
+  nullable = true
+}
 variable "tags" { type = map(string) }
