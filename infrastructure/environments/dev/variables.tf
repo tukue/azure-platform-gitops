@@ -57,6 +57,43 @@ variable "managed_hsm_admin_object_ids" {
   default     = []
   description = "Trusted Entra object IDs that administer the Managed HSM security domain."
 }
+variable "managed_hsm_signing_key_enabled" {
+  type        = bool
+  default     = false
+  description = "Creates a non-exportable HSM signing key and grants per-key local RBAC to the configured principals."
+}
+variable "managed_hsm_signing_key_name" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Name of the HSM signing key. Required when managed_hsm_signing_key_enabled is true."
+}
+variable "managed_hsm_signing_principal_ids" {
+  type        = set(string)
+  default     = []
+  description = "Entra principal object IDs allowed to sign and verify with the dedicated signing key."
+}
+variable "managed_hsm_auditor_principal_ids" {
+  type        = set(string)
+  default     = []
+  description = "Entra principal object IDs allowed to inspect the dedicated signing key without using it."
+}
+variable "enterprise_pki_enabled" {
+  type        = bool
+  default     = false
+  description = "Creates the private Azure Cloud HSM foundation for an externally governed AD CS issuing CA."
+}
+variable "cloud_hsm_name" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Globally unique Azure Cloud HSM name. Required when enterprise_pki_enabled is true."
+}
+variable "cloud_hsm_sku_capacity" {
+  type        = number
+  default     = 1
+  description = "Azure Cloud HSM Standard_B1 capacity. Confirm regional quota and cost before enabling."
+}
 variable "firewall_enabled" {
   type        = bool
   default     = false

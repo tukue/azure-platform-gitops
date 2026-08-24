@@ -15,11 +15,11 @@ Use DNS-01 for a private AKS platform. HTTP-01 would require exposing the ingres
 
 Create the issuer through a reviewed GitOps change after these values are available. Do not commit registrar credentials, ACME account keys, or certificate private keys.
 
-## Managed HSM and CA keys
+## HSM and CA keys
 
-The Terraform `managed-hsm` module creates a separate, private Azure Managed HSM with purge protection and a trusted Entra administrator set. It is reserved for CA/signing-key workloads that require HSM-backed custody. Managed HSM is not itself a certificate authority: an enterprise CA or PKI service must be selected to issue certificates and use the HSM-backed key material.
+The Terraform `managed-hsm` module creates a separate, private Azure Managed HSM for REST-based signing-key custody. It is not a certificate authority. The enterprise private PKI profile instead uses Azure Cloud HSM as the PKCS#11/CNG boundary for an externally governed AD CS issuing CA.
 
-This separation is intentional. Application secrets remain in Azure Key Vault, AKS disk CMKs remain in the dedicated Standard CMK Key Vault, and CA/signing keys can be governed through Managed HSM with distinct administrators and recovery procedures.
+This separation is intentional. Application secrets remain in Azure Key Vault, AKS disk CMKs remain in the dedicated Standard CMK Key Vault, Managed HSM holds application signing keys, and Cloud HSM holds the issuing-CA key under distinct administrators and recovery procedures. See [enterprise private PKI](enterprise-private-pki.md).
 
 ## Certificate lifecycle controls
 
