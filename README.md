@@ -2,6 +2,37 @@
 
 This repository is a focused reference implementation for an Azure platform delivery path: Terraform provisions Azure foundations, GitHub Actions validates changes, Argo CD reconciles Kubernetes desired state, and AKS runs observable workloads from ACR images.
 
+## Requirements addressed
+
+The platform demonstrates how a regulated engineering organization can deliver Kubernetes workloads while protecting sensitive keys, certificates, and operational data.
+
+### Business requirements
+
+| Requirement | How this implementation addresses it | Status |
+| --- | --- | --- |
+| Deliver business applications predictably | Pull-request validation, immutable image publication, and Argo CD reconciliation make deployment changes reviewable and repeatable. | Implemented |
+| Reduce security and outage risk | Private-by-default services, least-privilege identities, policy checks, monitoring, alerts, and GitOps drift recovery reduce manual-change risk. | Implemented foundation |
+| Protect high-value cryptographic assets | Key Vault protects application secrets and CMK material; Managed HSM protects non-exportable signing keys; Cloud HSM provides the private issuing-CA boundary. | Implemented foundation |
+| Support audit and compliance evidence | Terraform state, Git history, CI validation, Azure diagnostics, and Log Analytics establish change and operational evidence. | Implemented foundation |
+| Support trusted internal service identity | The enterprise PKI design separates an offline root, an issuing CA, HSM-backed CA keys, and certificate lifecycle operations. | Azure boundary implemented; CA operations external |
+| Maintain operational continuity | Soft delete, purge protection, rotation policies, diagnostics, recovery runbooks, and explicit ownership support controlled recovery. | Implemented foundation |
+
+### Technical requirements
+
+| Requirement | Implementation |
+| --- | --- |
+| Repeatable Azure infrastructure | Modular Terraform provisions AKS, ACR, networking, observability, Key Vault, HSM capabilities, and required Azure RBAC. |
+| Secure workload identity | AKS OIDC and Workload Identity avoid static Azure credentials for Kubernetes workloads; GitHub Actions uses OIDC for Azure access. |
+| GitOps deployment control | Argo CD reconciles Kubernetes desired state from Git; CI renders and validates manifests but does not use `kubectl apply` for deployment. |
+| Container supply path | The kubelet identity receives `AcrPull`; GitHub publishing uses scoped `AcrPush`; image promotion is a reviewed Git change. |
+| Central observability | Container Insights, Log Analytics, Managed Prometheus, Managed Grafana, diagnostics, and focused alerts provide operational signals. |
+| Key and certificate separation | Application secrets, AKS disk CMK, signing keys, and issuing-CA keys use separate services, identities, and administrator boundaries. |
+| Private cryptographic connectivity | Key Vault, Managed HSM, and Cloud HSM use private endpoints and private DNS; public access is disabled where implemented. |
+| Enterprise CA foundation | Azure Cloud HSM is provisioned through pinned AzAPI with a backup identity and private endpoint; AD CS installation and CA ceremonies stay outside IaC. |
+| Controlled PKI lifecycle | Documentation defines root/issuing-CA separation, HSM initialization, CRL/OCSP, recovery, and the future AKS enrollment decision. |
+
+The platform intentionally does not claim that AD CS, an offline root CA, CRL/OCSP, or a Kubernetes certificate issuer are deployed. Those require organization-specific PKI governance and approved operational ceremonies.
+
 ## Implemented
 
 - Modular Terraform for a resource group, VNet, AKS subnet, private-endpoint subnet, ACR, AKS, private Key Vault, and required identities/RBAC.
@@ -109,6 +140,45 @@ Follow [GitHub OIDC bootstrap](docs/github-oidc.md) before enabling Terraform pl
 
 The application workflow runs tests and builds the container. The manual **Publish demo API** workflow uses OIDC and scoped `AcrPush` permission to publish an immutable image tag to ACR. After a successful publish, update the image tag in `applications/demo-api/deployment.yaml` through a pull request; that Git change is the deployment promotion consumed by Argo CD.
 
+## Delivery workflow
+
+The platform uses Git as the desired-state record. GitHub Actions validates proposed changes but does not deploy Kubernetes resources with `kubectl apply`.
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant GH as GitHub Actions
+    participant TF as Terraform / Azure
+    participant ACR as Azure Container Registry
+    participant Argo as Argo CD
+    participant AKS as AKS
+    participant Mon as Azure Monitor
+
+    Dev->>GH: Open pull request
+    GH->>GH: Terraform fmt, init, validate, speculative plan
+    GH->>GH: API tests, container build, Kustomize and policy checks
+    Dev->>GH: Merge approved change
+    Dev->>TF: Run reviewed make apply
+    TF->>TF: Provision or update Azure resources
+    Dev->>GH: Run Publish demo API with immutable image tag
+    GH->>ACR: Build and push image through OIDC
+    Dev->>GH: Promote image tag through pull request
+    Argo->>AKS: Reconcile Git-declared platform and workload state
+    AKS->>Mon: Send logs, metrics, diagnostics, and alerts
+```
+
+| Workflow | Trigger | What happens | Ownership boundary |
+| --- | --- | --- | --- |
+| Infrastructure validation | Pull request affecting `infrastructure/**` | Formats, initializes, validates, and—when OIDC environment variables are configured—creates a speculative Terraform plan. | GitHub Actions validates; Terraform owns Azure. |
+| Application validation | Pull request affecting `applications/demo-api/**` | Runs API tests and validates the container build. | GitHub Actions validates; no deployment occurs. |
+| GitOps validation | Pull request affecting `clusters/**`, `platform/**`, or `applications/**` | Renders Kustomize sources and evaluates Conftest/Rego policy. | GitHub Actions validates; Argo CD owns deployment. |
+| Image publishing | Manual `Publish demo API` workflow | Uses GitHub OIDC and scoped `AcrPush` to publish an immutable ACR image tag. | GitHub Actions builds; Git promotion selects deployment. |
+| Workload promotion | Pull request updating the image tag | Argo CD detects the merged desired-state change and reconciles AKS. | Argo CD owns Kubernetes state. |
+| Drift recovery | Manual mutation or configuration drift | Argo CD self-heals reconciled resources back to Git. | Git remains authoritative. |
+| Observability | Continuous AKS and Azure telemetry | Azure Monitor collects logs, metrics, diagnostics, and evaluates alerts. | Terraform owns Azure monitoring resources. |
+
+Terraform applies are intentionally operator-initiated and reviewed; this reference implementation does not auto-apply Azure changes after merge. Kubernetes deployments are intentionally Argo CD-driven after the one-time bootstrap described below.
+
 ## GitOps workflow
 
 After `kubectl get nodes` succeeds, bootstrap Argo CD from an administrator workstation:
@@ -180,6 +250,16 @@ The optional enterprise PKI profile implements the Azure security boundary for a
 | AKS/cert-manager enrollment connector | Future, select after CA interface review | GitOps/platform team |
 
 Enable it only after confirming Cloud HSM quota, cost, private CA-host connectivity, administrator separation, backup/recovery ownership, and an AD CS enrollment design. The CA private key must never enter Git, Terraform state, or Kubernetes. See [enterprise private PKI](docs/enterprise-private-pki.md) for the implementation boundary and operational checklist.
+
+### PKI workflow
+
+1. Security and PKI owners approve the CA hierarchy, recovery custodians, Cloud HSM capacity, and private network design.
+2. A reviewed Terraform change enables the Cloud HSM foundation; an approved operator runs `make apply`.
+3. A private administration host initializes Cloud HSM and verifies the Private Endpoint with `scripts/test-cloud-hsm-preflight.ps1`.
+4. The PKI team performs the offline-root and issuing-CA ceremonies, then operates AD CS, CRL, OCSP, templates, and renewal processes outside this repository.
+5. A future reviewed GitOps change can add an AKS enrollment connector after its AD CS interface, identity, and secret-storage model are approved.
+
+Steps 3–5 are not automated by Terraform or GitHub Actions. They intentionally require controlled operational procedures.
 
 ## Cleanup
 
