@@ -27,12 +27,19 @@ resource "terraform_data" "cmk_configuration" {
 }
 
 resource "terraform_data" "managed_hsm_configuration" {
-  input = var.managed_hsm_enabled
+  input = {
+    enabled             = var.managed_hsm_enabled
+    signing_key_enabled = var.managed_hsm_signing_key_enabled
+  }
 
   lifecycle {
     precondition {
       condition     = !var.managed_hsm_enabled || (var.managed_hsm_name != null && length(var.managed_hsm_admin_object_ids) > 0)
       error_message = "Managed HSM requires managed_hsm_name and one or more trusted Entra administrator object IDs."
+    }
+    precondition {
+      condition     = !var.managed_hsm_signing_key_enabled || (var.managed_hsm_enabled && var.managed_hsm_signing_key_name != null && length(var.managed_hsm_signing_principal_ids) > 0)
+      error_message = "A Managed HSM signing key requires Managed HSM, a key name, and at least one signing principal."
     }
   }
 }
@@ -148,6 +155,10 @@ module "managed_hsm" {
   admin_object_ids           = var.managed_hsm_admin_object_ids
   virtual_network_id         = module.networking.vnet_id
   private_endpoint_subnet_id = module.networking.private_endpoints_subnet_id
+  signing_key_enabled        = var.managed_hsm_signing_key_enabled
+  signing_key_name           = var.managed_hsm_signing_key_name
+  signing_principal_ids      = var.managed_hsm_signing_principal_ids
+  auditor_principal_ids      = var.managed_hsm_auditor_principal_ids
   tags                       = local.common_tags
 
   depends_on = [terraform_data.managed_hsm_configuration]
@@ -303,6 +314,12 @@ data "azurerm_monitor_diagnostic_categories" "key_vault" {
   resource_id = module.key_vault.id
 }
 
+data "azurerm_monitor_diagnostic_categories" "managed_hsm" {
+  count = var.managed_hsm_enabled ? 1 : 0
+
+  resource_id = module.managed_hsm[0].id
+}
+
 locals {
   aks_diagnostic_log_categories = setintersection(
     toset(data.azurerm_monitor_diagnostic_categories.aks.log_category_types),
@@ -316,6 +333,10 @@ locals {
     toset(data.azurerm_monitor_diagnostic_categories.key_vault.log_category_types),
     toset(["AuditEvent"])
   )
+  managed_hsm_diagnostic_log_categories = var.managed_hsm_enabled ? setintersection(
+    toset(data.azurerm_monitor_diagnostic_categories.managed_hsm[0].log_category_types),
+    toset(["AuditEvent"])
+  ) : toset([])
 }
 
 resource "azurerm_monitor_diagnostic_setting" "aks" {
@@ -351,6 +372,21 @@ resource "azurerm_monitor_diagnostic_setting" "key_vault" {
 
   dynamic "enabled_log" {
     for_each = local.key_vault_diagnostic_log_categories
+    content {
+      category = enabled_log.value
+    }
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "managed_hsm" {
+  count = var.managed_hsm_enabled ? 1 : 0
+
+  name                       = "diag-${module.managed_hsm[0].name}"
+  target_resource_id         = module.managed_hsm[0].id
+  log_analytics_workspace_id = module.observability.log_analytics_workspace_id
+
+  dynamic "enabled_log" {
+    for_each = local.managed_hsm_diagnostic_log_categories
     content {
       category = enabled_log.value
     }

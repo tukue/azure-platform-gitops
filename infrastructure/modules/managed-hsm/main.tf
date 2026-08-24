@@ -50,3 +50,56 @@ resource "azurerm_private_endpoint" "this" {
     private_dns_zone_ids = [azurerm_private_dns_zone.this.id]
   }
 }
+
+resource "azurerm_key_vault_managed_hardware_security_module_key" "signing" {
+  count = var.signing_key_enabled ? 1 : 0
+
+  name           = var.signing_key_name
+  managed_hsm_id = azurerm_key_vault_managed_hardware_security_module.this.id
+  key_type       = "RSA-HSM"
+  key_size       = 3072
+  key_opts       = ["sign", "verify"]
+  tags           = merge(var.tags, { purpose = "code-signing" })
+}
+
+resource "azurerm_key_vault_managed_hardware_security_module_key_rotation_policy" "signing" {
+  count = var.signing_key_enabled ? 1 : 0
+
+  managed_hsm_key_id = azurerm_key_vault_managed_hardware_security_module_key.signing[0].id
+  expire_after       = "P2Y"
+  time_before_expiry = "P90D"
+}
+
+data "azurerm_key_vault_managed_hardware_security_module_role_definition" "crypto_user" {
+  count = var.signing_key_enabled && length(var.signing_principal_ids) > 0 ? 1 : 0
+
+  managed_hsm_id = azurerm_key_vault_managed_hardware_security_module.this.id
+  name           = "21dbd100-6940-42c2-9190-5d6cb909625b"
+}
+
+data "azurerm_key_vault_managed_hardware_security_module_role_definition" "crypto_auditor" {
+  count = var.signing_key_enabled && length(var.auditor_principal_ids) > 0 ? 1 : 0
+
+  managed_hsm_id = azurerm_key_vault_managed_hardware_security_module.this.id
+  name           = "2c18b078-7c48-4d3a-af88-5a3a1b3f82b3"
+}
+
+resource "azurerm_key_vault_managed_hardware_security_module_role_assignment" "signing_user" {
+  for_each = var.signing_key_enabled ? var.signing_principal_ids : toset([])
+
+  name               = uuidv5("url", "${azurerm_key_vault_managed_hardware_security_module.this.id}/keys/${var.signing_key_name}/${each.value}/crypto-user")
+  managed_hsm_id     = azurerm_key_vault_managed_hardware_security_module.this.id
+  scope              = "/keys/${var.signing_key_name}"
+  role_definition_id = data.azurerm_key_vault_managed_hardware_security_module_role_definition.crypto_user[0].resource_manager_id
+  principal_id       = each.value
+}
+
+resource "azurerm_key_vault_managed_hardware_security_module_role_assignment" "signing_auditor" {
+  for_each = var.signing_key_enabled ? var.auditor_principal_ids : toset([])
+
+  name               = uuidv5("url", "${azurerm_key_vault_managed_hardware_security_module.this.id}/keys/${var.signing_key_name}/${each.value}/crypto-auditor")
+  managed_hsm_id     = azurerm_key_vault_managed_hardware_security_module.this.id
+  scope              = "/keys/${var.signing_key_name}"
+  role_definition_id = data.azurerm_key_vault_managed_hardware_security_module_role_definition.crypto_auditor[0].resource_manager_id
+  principal_id       = each.value
+}

@@ -17,3 +17,5 @@ output "tenant_id" { value = data.azurerm_client_config.current.tenant_id }
 output "cmk_key_vault_name" { value = var.cmk_enabled ? module.cmk[0].key_vault_name : null }
 output "aks_disk_encryption_set_id" { value = var.cmk_enabled ? module.cmk[0].disk_encryption_set_id : null }
 output "managed_hsm_uri" { value = var.managed_hsm_enabled ? module.managed_hsm[0].hsm_uri : null }
+output "managed_hsm_signing_key_id" { value = var.managed_hsm_signing_key_enabled ? module.managed_hsm[0].signing_key_id : null }
+output "managed_hsm_signing_key_versioned_id" { value = var.managed_hsm_signing_key_enabled ? module.managed_hsm[0].signing_key_versioned_id : null }
