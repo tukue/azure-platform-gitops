@@ -44,6 +44,17 @@ resource "terraform_data" "managed_hsm_configuration" {
   }
 }
 
+resource "terraform_data" "enterprise_pki_configuration" {
+  input = var.enterprise_pki_enabled
+
+  lifecycle {
+    precondition {
+      condition     = !var.enterprise_pki_enabled || (var.private_cluster_enabled && var.cloud_hsm_name != null)
+      error_message = "Enterprise PKI requires a private AKS profile and a globally unique cloud_hsm_name."
+    }
+  }
+}
+
 resource "terraform_data" "firewall_configuration" {
   input = var.firewall_enabled
 
@@ -162,6 +173,22 @@ module "managed_hsm" {
   tags                       = local.common_tags
 
   depends_on = [terraform_data.managed_hsm_configuration]
+}
+
+module "cloud_hsm" {
+  count = var.enterprise_pki_enabled ? 1 : 0
+
+  source                     = "../../modules/cloud-hsm"
+  name                       = var.cloud_hsm_name
+  location                   = azurerm_resource_group.this.location
+  resource_group_name        = azurerm_resource_group.this.name
+  resource_group_id          = azurerm_resource_group.this.id
+  virtual_network_id         = module.networking.vnet_id
+  private_endpoint_subnet_id = module.networking.private_endpoints_subnet_id
+  sku_capacity               = var.cloud_hsm_sku_capacity
+  tags                       = local.common_tags
+
+  depends_on = [terraform_data.enterprise_pki_configuration]
 }
 
 module "acr" {

@@ -19,3 +19,5 @@ output "aks_disk_encryption_set_id" { value = var.cmk_enabled ? module.cmk[0].di
 output "managed_hsm_uri" { value = var.managed_hsm_enabled ? module.managed_hsm[0].hsm_uri : null }
 output "managed_hsm_signing_key_id" { value = var.managed_hsm_signing_key_enabled ? module.managed_hsm[0].signing_key_id : null }
 output "managed_hsm_signing_key_versioned_id" { value = var.managed_hsm_signing_key_enabled ? module.managed_hsm[0].signing_key_versioned_id : null }
+output "cloud_hsm_id" { value = var.enterprise_pki_enabled ? module.cloud_hsm[0].id : null }
+output "cloud_hsm_backup_identity_principal_id" { value = var.enterprise_pki_enabled ? module.cloud_hsm[0].backup_identity_principal_id : null }

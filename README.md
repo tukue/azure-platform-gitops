@@ -13,7 +13,7 @@ This repository is a focused reference implementation for an Azure platform deli
 - Azure Key Vault secret injection through Argo CD-managed External Secrets Operator and AKS Workload Identity; values never enter Git or Terraform state.
 - Policy as code: Conftest/Rego validates rendered GitOps manifests in CI, and Terraform enables the AKS Azure Policy add-on for centrally managed audit-first runtime guardrails.
 - Production-security foundation: Basic ACR, private Key Vault, security diagnostics, and production deletion protection.
-- Regulated-security capabilities: opt-in AKS disk CMK/Disk Encryption Set, private Azure Managed HSM with an optional non-exportable signing key and per-key RBAC, Azure Firewall egress, Azure Monitor Private Link Scope, and GitOps-managed certificate controller. These capabilities are implemented in Terraform/GitOps but not Azure-deployment-verified.
+- Regulated-security capabilities: opt-in AKS disk CMK/Disk Encryption Set, private Azure Managed HSM signing-key custody, Azure Cloud HSM foundation for an externally governed AD CS issuing CA, Azure Firewall egress, Azure Monitor Private Link Scope, and GitOps-managed certificate controller. These capabilities are implemented in Terraform/GitOps but not Azure-deployment-verified.
 - A minimal FastAPI `/health` and `/metrics` service with probes, resource controls, hardened pod settings, and an internal ingress route.
 - Architecture decision records and an explicit Argo CD bootstrap command.
 
@@ -34,6 +34,7 @@ flowchart LR
     AZ --> KV[Private Azure Key Vault]
     AZ --> CMK[Dedicated CMK Key Vault and Disk Encryption Set]
     AZ --> HSM[Private Azure Managed HSM]
+    AZ --> CHSM[Private Azure Cloud HSM]
     AZ --> FW[Azure Firewall]
     AZ --> AMPLS[Azure Monitor Private Link Scope]
 
@@ -60,6 +61,7 @@ flowchart LR
     ARGO --> CERT[cert-manager]
     HSM --> SIGN[HSM signing key]
     SIGN --> LAW
+    CHSM --> ICA[External private AD CS issuing CA]
 ```
 
 Terraform owns Azure resources and Azure RBAC. Argo CD owns Kubernetes resources. GitHub Actions builds and validates, but never deploys with `kubectl apply`.
@@ -165,6 +167,10 @@ The optional regulated profile adds a dedicated CMK Key Vault and Disk Encryptio
 
 See the [regulated security profile](docs/regulated-security-profile.md), [Managed HSM key custody](docs/managed-hsm-operations.md), and [certificate management](docs/certificate-management.md) before enabling these controls.
 
+## Enterprise private PKI
+
+The optional enterprise PKI profile provisions a private Azure Cloud HSM, backup identity, Private Endpoint, and private DNS as the HSM boundary for an externally governed AD CS issuing CA. The offline root CA, CA host, HSM initialization, CA key, CRL/OCSP endpoints, and AKS enrollment connector remain explicit PKI operations—not Terraform resources. See [enterprise private PKI](docs/enterprise-private-pki.md) before enabling it.
+
 ## Cleanup
 
 First remove Argo CD-managed resources if the cluster is reachable.
@@ -186,6 +192,7 @@ Destroying AKS also removes Argo CD and all workloads. Review the Terraform plan
 - The Basic ACR profile does not provide ACR Private Link or ACR CMK. AKS disk CMK remains available through the dedicated Standard Key Vault.
 - `cert-manager` is installed declaratively, but no production `ClusterIssuer` is configured until a delegated DNS zone and ACME registration details are supplied.
 - Managed HSM key custody provisions the HSM key and Azure-side access pattern only; an approved signing service, certificate chain, timestamp authority, BYOK ceremony, and security-domain recovery exercise remain organization-specific work.
+- Enterprise private PKI provisions only the Azure Cloud HSM boundary. It does not deploy AD CS, Active Directory, CRL/OCSP endpoints, an offline root, HSM initialization, or a Kubernetes certificate issuer.
 - Future work can add dashboard-as-code, action groups, dedicated workload node pools, backup/disaster recovery, image scanning, and Git-based image promotion automation after operating requirements justify them.
 
 See [the ADRs](docs/adr) for the reasoning behind AKS, Argo CD, ownership boundaries, federated identity, Azure-native observability, and Key Vault secret injection.

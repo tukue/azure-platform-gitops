@@ -78,6 +78,22 @@ variable "managed_hsm_auditor_principal_ids" {
   default     = []
   description = "Entra principal object IDs allowed to inspect the dedicated signing key without using it."
 }
+variable "enterprise_pki_enabled" {
+  type        = bool
+  default     = false
+  description = "Creates the private Azure Cloud HSM foundation for an externally governed AD CS issuing CA."
+}
+variable "cloud_hsm_name" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Globally unique Azure Cloud HSM name. Required when enterprise_pki_enabled is true."
+}
+variable "cloud_hsm_sku_capacity" {
+  type        = number
+  default     = 1
+  description = "Azure Cloud HSM Standard_B1 capacity. Confirm regional quota and cost before enabling."
+}
 variable "firewall_enabled" {
   type        = bool
   default     = false

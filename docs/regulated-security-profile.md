@@ -31,7 +31,7 @@ key_vault_soft_delete_retention_days       = 90
 
 - The dedicated Standard CMK Key Vault stores the RSA key used by the Disk Encryption Set.
 - Application secrets remain in the separate private Key Vault consumed by External Secrets Operator.
-- Managed HSM is reserved for CA, signing, or BYOK keys with a separately governed security domain and Entra administrator group.
+- Managed HSM is reserved for application signing or BYOK keys with a separately governed security domain and Entra administrator group. Azure Cloud HSM is the separate PKCS#11/CNG boundary for an enterprise issuing CA.
 - Basic ACR remains public for GitHub-hosted build runners. It does not use CMK or Private Link in this reference profile.
 
 ## Migration and recovery
