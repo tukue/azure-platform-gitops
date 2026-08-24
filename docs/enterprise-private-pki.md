@@ -15,7 +15,7 @@ flowchart TB
     PE --> DNS[privatelink.cloudhsm.azure.net]
 ```
 
-The offline root CA is deliberately not provisioned by this repository. Its key ceremony, custody, backup media, access policy, and physical/offline controls are organization-specific security responsibilities. Terraform creates only the Azure Cloud HSM foundation required by the online issuing CA.
+The offline root CA is deliberately not provisioned by this repository. Its key custody, backup media, access policy, and physical/offline controls are organization-specific security responsibilities. Terraform creates only the Azure Cloud HSM foundation required by the online issuing CA.
 
 ## Implemented Azure foundation
 
@@ -74,6 +74,6 @@ The final step depends on the organization’s approved AD CS enrollment interfa
 
 ## Cost and limitations
 
-Azure Cloud HSM is a dedicated, premium service and can require capacity/quota approval. This repository does not create Windows VMs, Active Directory, AD CS, CRL/OCSP infrastructure, Cloud HSM initialization, CA keys, or certificate templates. Those pieces cannot be safely automated without organization-specific identity, domain, network, recovery, and compliance decisions.
+Azure Cloud HSM is a dedicated service and can require capacity/quota approval. This repository does not create Windows VMs, Active Directory, AD CS, CRL/OCSP infrastructure, Cloud HSM initialization, CA keys, or certificate templates. Those pieces cannot be safely automated without organization-specific identity, domain, network, recovery, and compliance decisions.
 
 See [Azure Cloud HSM networking guidance](https://learn.microsoft.com/azure/cloud-hsm/network-security), [Cloud HSM deployment guidance](https://learn.microsoft.com/azure/cloud-hsm/quickstart-powershell), and [AD CS overview](https://learn.microsoft.com/windows-server/identity/ad-cs/active-directory-certificate-services-overview).
