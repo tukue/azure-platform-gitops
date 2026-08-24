@@ -154,7 +154,7 @@ GitHub Actions renders Argo CD sources and uses Conftest/Rego to block insecure 
 
 ## Regulated security profile
 
-The optional regulated profile adds a dedicated CMK Key Vault and Disk Encryption Set, Azure Managed HSM for CA/signing-key workloads, Azure Firewall with UDR-based AKS egress, Azure Monitor Private Link Scope, and GitOps-managed `cert-manager`.
+The optional regulated profile adds a dedicated CMK Key Vault and Disk Encryption Set, Azure Managed HSM signing-key custody, Azure Firewall with UDR-based AKS egress, Azure Monitor Private Link Scope, and GitOps-managed `cert-manager`.
 
 | Capability | Owner | Activation constraint |
 | --- | --- | --- |
@@ -169,7 +169,17 @@ See the [regulated security profile](docs/regulated-security-profile.md), [Manag
 
 ## Enterprise private PKI
 
-The optional enterprise PKI profile provisions a private Azure Cloud HSM, backup identity, Private Endpoint, and private DNS as the HSM boundary for an externally governed AD CS issuing CA. The offline root CA, CA host, HSM initialization, CA key, CRL/OCSP endpoints, and AKS enrollment connector remain explicit PKI operations—not Terraform resources. See [enterprise private PKI](docs/enterprise-private-pki.md) before enabling it.
+The optional enterprise PKI profile implements the Azure security boundary for a two-tier AD CS design. It provisions a private Azure Cloud HSM, backup identity, Private Endpoint, and private DNS for the issuing-CA key. It is disabled by default because Cloud HSM is a dedicated premium service and requires an approved PKI operating model.
+
+| PKI component | Status | Owner |
+| --- | --- | --- |
+| Azure Cloud HSM, backup identity, Private Endpoint, private DNS | Implemented | Terraform |
+| Offline root CA and root-key ceremony | External, required before issuance | PKI/security team |
+| Online AD CS issuing CA host and HSM initialization | External, required before issuance | PKI/platform team |
+| CRL/OCSP, certificate templates, enrollment authorization | External, required before issuance | PKI team |
+| AKS/cert-manager enrollment connector | Future, select after CA interface review | GitOps/platform team |
+
+Enable it only after confirming Cloud HSM quota, cost, private CA-host connectivity, administrator separation, backup/recovery ownership, and an AD CS enrollment design. The CA private key must never enter Git, Terraform state, or Kubernetes. See [enterprise private PKI](docs/enterprise-private-pki.md) for the implementation boundary and operational checklist.
 
 ## Cleanup
 
