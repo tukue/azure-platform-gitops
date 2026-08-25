@@ -33,6 +33,10 @@ The platform demonstrates how a regulated engineering organization can deliver K
 
 The platform intentionally does not claim that AD CS, an offline root CA, CRL/OCSP, or a Kubernetes certificate issuer are deployed. Those require organization-specific PKI governance and approved operational ceremonies.
 
+## Security and cryptography
+
+Read the [security posture assessment](docs/security-posture.md) for the current control assessment, development-versus-production differences, and prioritized hardening actions. Read [cryptographic platform and certificate authority](docs/cryptographic-platform.md) for the key hierarchy, HSM roles, CA trust model, lifecycle controls, and ownership boundaries.
+
 ## Implemented
 
 - Modular Terraform for a resource group, VNet, AKS subnet, private-endpoint subnet, ACR, AKS, private Key Vault, and required identities/RBAC.
