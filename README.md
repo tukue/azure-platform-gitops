@@ -278,17 +278,6 @@ Enable it only after confirming Cloud HSM quota, cost, private CA-host connectiv
 
 Steps 3–5 are not automated by Terraform or GitHub Actions. They intentionally require controlled operational procedures.
 
-## Cleanup
-
-First remove Argo CD-managed resources if the cluster is reachable.
-
-```bash
-kubectl delete application --all --namespace argocd
-kubectl delete namespace argocd
-make destroy
-```
-
-Destroying AKS also removes Argo CD and all workloads. Review the Terraform plan before confirmation, especially if state has been moved to a shared backend.
 
 ## Limitations and future improvements
 
