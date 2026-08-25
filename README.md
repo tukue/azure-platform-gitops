@@ -56,27 +56,37 @@ flowchart LR
     PR --> CI[GitHub Actions validation]
     CI --> GIT[Git repository]
 
-    TF[Terraform] --> AZ[Azure resource group]
-    AZ --> AKS[AKS]
-    AZ --> ACR[Azure Container Registry]
-    AZ --> LAW[Log Analytics Workspace]
-    AZ --> AMW[Azure Monitor Workspace]
-    AZ --> AMG[Azure Managed Grafana]
-    AZ --> KV[Private Azure Key Vault]
-    AZ --> CMK[Dedicated CMK Key Vault and Disk Encryption Set]
-    AZ --> HSM[Private Azure Managed HSM]
-    AZ --> CHSM[Private Azure Cloud HSM]
-    AZ --> FW[Azure Firewall]
-    AZ --> AMPLS[Azure Monitor Private Link Scope]
+    subgraph AZURE[Azure platform - Terraform owned]
+        TF[Terraform] --> AZ[Azure resource group]
+        AZ --> AKS[AKS]
+        AZ --> ACR[Azure Container Registry]
+        AZ --> LAW[Log Analytics Workspace]
+        AZ --> AMW[Azure Monitor Workspace]
+        AZ --> AMG[Azure Managed Grafana]
+        AZ --> KV[Private Azure Key Vault]
+        AZ --> CMK[CMK Key Vault and Disk Encryption Set]
+        AZ --> HSM[Private Azure Managed HSM]
+        AZ --> CHSM[Private Azure Cloud HSM]
+        AZ --> PKIPE[Cloud HSM Private Endpoint]
+        AZ --> PKIDNS[Private DNS: cloudhsm]
+        AZ --> FW[Azure Firewall]
+        AZ --> AMPLS[Azure Monitor Private Link Scope]
+        PKIDNS --> PKIPE
+        PKIPE --> CHSM
+    end
 
-    GIT --> ARGO[Argo CD]
-    ARGO --> PLATFORM[Platform configuration]
-    ARGO --> APP[Demo API deployment]
+    subgraph GITOPS[GitOps - Argo CD owned]
+        GIT --> ARGO[Argo CD]
+        ARGO --> PLATFORM[Platform configuration]
+        ARGO --> APP[Demo API deployment]
+        ARGO --> ESO[External Secrets Operator]
+        ARGO --> CERT[cert-manager]
+    end
+
     PLATFORM --> AKS
     APP --> AKS
     ACR --> AKS
-    KV --> ESO[External Secrets Operator]
-    ARGO --> ESO
+    KV --> ESO
     ESO --> APP
 
     AKS --> CI_LOGS[Container Insights]
@@ -89,10 +99,17 @@ flowchart LR
     AMG --> AMPLS
     AMW --> AMG
     LAW --> ALERTS[Azure Monitor alerts]
-    ARGO --> CERT[cert-manager]
-    HSM --> SIGN[HSM signing key]
+    HSM --> SIGN[Non-exportable signing key]
     SIGN --> LAW
-    CHSM --> ICA[External private AD CS issuing CA]
+
+    subgraph PKI[Enterprise PKI - external operational ownership]
+        ROOT[Offline root CA] --> ICA[Private AD CS issuing CA]
+        ICA --> CRL[CRL and OCSP endpoints]
+        ADMIN[Private PKI administration host] --> PKIDNS
+        ICA -->|private PKCS#11/CNG operations| PKIDNS
+    end
+
+    AKS -. future approved enrollment integration .-> ICA
 ```
 
 Terraform owns Azure resources and Azure RBAC. Argo CD owns Kubernetes resources. GitHub Actions builds and validates, but never deploys with `kubectl apply`.
