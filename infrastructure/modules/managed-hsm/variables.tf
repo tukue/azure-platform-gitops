@@ -20,7 +20,7 @@ variable "signing_key_name" {
 variable "signing_principal_ids" {
   type        = set(string)
   default     = []
-  description = "Entra principal object IDs granted Managed HSM Crypto User on only the signing key."
+  description = "Entra principal object IDs granted metadata, sign, and verify operations on only the signing key."
 }
 variable "auditor_principal_ids" {
   type        = set(string)

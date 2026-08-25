@@ -70,11 +70,21 @@ resource "azurerm_key_vault_managed_hardware_security_module_key_rotation_policy
   time_before_expiry = "P90D"
 }
 
-data "azurerm_key_vault_managed_hardware_security_module_role_definition" "crypto_user" {
+resource "azurerm_key_vault_managed_hardware_security_module_role_definition" "signing_client" {
   count = var.signing_key_enabled && length(var.signing_principal_ids) > 0 ? 1 : 0
 
   managed_hsm_id = azurerm_key_vault_managed_hardware_security_module.this.id
-  name           = "21dbd100-6940-42c2-9190-5d6cb909625b"
+  name           = uuidv5("url", "${azurerm_key_vault_managed_hardware_security_module.this.id}/roles/signing-client")
+  role_name      = "Platform signing client"
+  description    = "Reads metadata and signs or verifies with the explicitly assigned Managed HSM key."
+
+  permission {
+    data_actions = [
+      "Microsoft.KeyVault/managedHsm/keys/read/action",
+      "Microsoft.KeyVault/managedHsm/keys/sign/action",
+      "Microsoft.KeyVault/managedHsm/keys/verify/action",
+    ]
+  }
 }
 
 data "azurerm_key_vault_managed_hardware_security_module_role_definition" "crypto_auditor" {
@@ -90,7 +100,7 @@ resource "azurerm_key_vault_managed_hardware_security_module_role_assignment" "s
   name               = uuidv5("url", "${azurerm_key_vault_managed_hardware_security_module.this.id}/keys/${var.signing_key_name}/${each.value}/crypto-user")
   managed_hsm_id     = azurerm_key_vault_managed_hardware_security_module.this.id
   scope              = "/keys/${var.signing_key_name}"
-  role_definition_id = data.azurerm_key_vault_managed_hardware_security_module_role_definition.crypto_user[0].resource_manager_id
+  role_definition_id = azurerm_key_vault_managed_hardware_security_module_role_definition.signing_client[0].resource_manager_id
   principal_id       = each.value
 }
 

@@ -14,11 +14,13 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: demo-api
+        azure.workload.identity/use: "true"
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: /metrics
         prometheus.io/port: "8080"
     spec:
+      serviceAccountName: crypto-demo-api
       automountServiceAccountToken: false
       securityContext:
         seccompProfile:
@@ -31,6 +33,15 @@ spec:
             - secretRef:
                 name: demo-api-runtime
                 optional: true
+          env:
+            - name: AZURE_MANAGED_HSM_URI
+              value: REPLACE_WITH_TERRAFORM_MANAGED_HSM_URI
+            - name: AZURE_MANAGED_HSM_KEY_NAME
+              value: REPLACE_WITH_MANAGED_HSM_SIGNING_KEY_NAME
+            - name: AZURE_KEY_VAULT_URI
+              value: REPLACE_WITH_TERRAFORM_KEY_VAULT_URI
+            - name: CRYPTO_DEMO_SECRET_NAME
+              value: ""
           ports:
             - name: http
               containerPort: 8080

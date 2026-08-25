@@ -38,8 +38,12 @@ resource "terraform_data" "managed_hsm_configuration" {
       error_message = "Managed HSM requires managed_hsm_name and one or more trusted Entra administrator object IDs."
     }
     precondition {
-      condition     = !var.managed_hsm_signing_key_enabled || (var.managed_hsm_enabled && var.managed_hsm_signing_key_name != null && length(var.managed_hsm_signing_principal_ids) > 0)
+      condition     = !var.managed_hsm_signing_key_enabled || (var.managed_hsm_enabled && var.managed_hsm_signing_key_name != null && (length(var.managed_hsm_signing_principal_ids) > 0 || var.crypto_demo_enabled))
       error_message = "A Managed HSM signing key requires Managed HSM, a key name, and at least one signing principal."
+    }
+    precondition {
+      condition     = !var.crypto_demo_enabled || (var.managed_hsm_enabled && var.managed_hsm_signing_key_enabled && var.managed_hsm_signing_key_name != null)
+      error_message = "The cryptographic demo requires a Managed HSM signing key."
     }
   }
 }
@@ -168,11 +172,39 @@ module "managed_hsm" {
   private_endpoint_subnet_id = module.networking.private_endpoints_subnet_id
   signing_key_enabled        = var.managed_hsm_signing_key_enabled
   signing_key_name           = var.managed_hsm_signing_key_name
-  signing_principal_ids      = var.managed_hsm_signing_principal_ids
+  signing_principal_ids      = setunion(var.managed_hsm_signing_principal_ids, var.crypto_demo_enabled ? toset([azurerm_user_assigned_identity.crypto_demo[0].principal_id]) : toset([]))
   auditor_principal_ids      = var.managed_hsm_auditor_principal_ids
   tags                       = local.common_tags
 
   depends_on = [terraform_data.managed_hsm_configuration]
+}
+
+resource "azurerm_user_assigned_identity" "crypto_demo" {
+  count = var.crypto_demo_enabled ? 1 : 0
+
+  name                = "id-${local.name_prefix}-crypto-demo"
+  location            = azurerm_resource_group.this.location
+  resource_group_name = azurerm_resource_group.this.name
+  tags                = local.common_tags
+}
+
+resource "azurerm_federated_identity_credential" "crypto_demo" {
+  count = var.crypto_demo_enabled ? 1 : 0
+
+  name                = "fic-crypto-demo"
+  resource_group_name = azurerm_resource_group.this.name
+  parent_id           = azurerm_user_assigned_identity.crypto_demo[0].id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = module.aks.oidc_issuer_url
+  subject             = "system:serviceaccount:demo:crypto-demo-api"
+}
+
+resource "azurerm_role_assignment" "crypto_demo_key_vault_secret_reader" {
+  count = var.crypto_demo_enabled ? 1 : 0
+
+  scope                = module.key_vault.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.crypto_demo[0].principal_id
 }
 
 module "cloud_hsm" {
@@ -475,6 +507,86 @@ resource "azurerm_monitor_scheduled_query_rules_alert_v2" "demo_availability" {
       | where Namespace == "demo" and Name startswith "demo-api-"
       | summarize RunningPods = dcountif(Name, PodStatus == "Running") by ClusterName, Namespace
       | where RunningPods < 1
+    KQL
+    time_aggregation_method = "Count"
+    operator                = "GreaterThan"
+    threshold               = 0
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  dynamic "action" {
+    for_each = length(var.alert_action_group_ids) > 0 ? [1] : []
+    content {
+      action_groups = var.alert_action_group_ids
+    }
+  }
+}
+
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "managed_hsm_failed_operations" {
+  count = var.managed_hsm_enabled ? 1 : 0
+
+  name                 = "alert-${local.name_prefix}-managed-hsm-failures"
+  resource_group_name  = azurerm_resource_group.this.name
+  location             = azurerm_resource_group.this.location
+  display_name         = "Managed HSM failed operations"
+  description          = "Detects failed Managed HSM audit operations. Investigate identity, per-key role assignment, private DNS, and key state before retrying."
+  scopes               = [module.observability.log_analytics_workspace_id]
+  severity             = 2
+  evaluation_frequency = "PT5M"
+  window_duration      = "PT15M"
+  tags                 = local.common_tags
+
+  criteria {
+    query                   = <<-KQL
+      AzureDiagnostics
+      | where TimeGenerated > ago(15m)
+      | where ResourceId =~ "${module.managed_hsm[0].id}"
+      | where Category == "AuditEvent"
+      | where ResultType !in~ ("Success", "Succeeded")
+      | summarize FailedOperations = count() by OperationName, ResultType, identity_claim_appid_g
+    KQL
+    time_aggregation_method = "Count"
+    operator                = "GreaterThan"
+    threshold               = 0
+    failing_periods {
+      minimum_failing_periods_to_trigger_alert = 1
+      number_of_evaluation_periods             = 1
+    }
+  }
+
+  dynamic "action" {
+    for_each = length(var.alert_action_group_ids) > 0 ? [1] : []
+    content {
+      action_groups = var.alert_action_group_ids
+    }
+  }
+}
+
+resource "azurerm_monitor_scheduled_query_rules_alert_v2" "managed_hsm_key_management" {
+  count = var.managed_hsm_enabled ? 1 : 0
+
+  name                 = "alert-${local.name_prefix}-managed-hsm-key-management"
+  resource_group_name  = azurerm_resource_group.this.name
+  location             = azurerm_resource_group.this.location
+  display_name         = "Managed HSM key management operation"
+  description          = "Detects key lifecycle operations on Managed HSM. Confirm that creation, update, deletion, import, backup, restore, or purge activity has an approved change record."
+  scopes               = [module.observability.log_analytics_workspace_id]
+  severity             = 2
+  evaluation_frequency = "PT5M"
+  window_duration      = "PT15M"
+  tags                 = local.common_tags
+
+  criteria {
+    query                   = <<-KQL
+      AzureDiagnostics
+      | where TimeGenerated > ago(15m)
+      | where ResourceId =~ "${module.managed_hsm[0].id}"
+      | where Category == "AuditEvent"
+      | where OperationName has_any ("Create", "Update", "Delete", "Import", "Backup", "Restore", "Purge")
+      | summarize KeyManagementOperations = count() by OperationName, identity_claim_appid_g
     KQL
     time_aggregation_method = "Count"
     operator                = "GreaterThan"

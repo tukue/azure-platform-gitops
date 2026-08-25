@@ -37,6 +37,14 @@ The platform intentionally does not claim that AD CS, an offline root CA, CRL/OC
 
 Read the [security posture assessment](docs/security-posture.md) for the current control assessment, development-versus-production differences, and prioritized hardening actions. Read [cryptographic platform and certificate authority](docs/cryptographic-platform.md) for the key hierarchy, HSM roles, CA trust model, lifecycle controls, and ownership boundaries.
 
+## Managed HSM cryptographic MVP
+
+**Business problem:** a backend must prove that a sensitive transaction was approved without storing its signing private key in code, containers, Kubernetes, or application memory.
+
+**Solution:** the API hashes the transaction, authenticates through AKS Workload Identity and Microsoft Entra ID, and calls a non-exportable Managed HSM key. The HSM returns a signature; `/verify` validates it through the same HSM-backed key.
+
+**Security properties:** a custom per-key role permits only metadata read, sign, and verify; there are no client secrets; HSM audit events flow to Log Analytics; and alerts identify failed or key-management operations. See [Managed HSM cryptographic MVP](docs/managed-hsm-crypto-mvp.md) for enablement values, identity flow, API calls, and security boundaries.
+
 ## Implemented
 
 - Modular Terraform for a resource group, VNet, AKS subnet, private-endpoint subnet, ACR, AKS, private Key Vault, and required identities/RBAC.
@@ -191,7 +199,7 @@ sequenceDiagram
 | Workflow | Trigger | What happens | Ownership boundary |
 | --- | --- | --- | --- |
 | Infrastructure validation | Pull request affecting `infrastructure/**` | Formats, initializes, validates, and—when OIDC environment variables are configured—creates a speculative Terraform plan. | GitHub Actions validates; Terraform owns Azure. |
-| Application validation | Pull request affecting `applications/demo-api/**` | Runs API tests and validates the container build. | GitHub Actions validates; no deployment occurs. |
+| Application validation | Pull request affecting `applications/demo-api/**` | Audits Python dependencies, runs API tests, and validates the container build. | GitHub Actions validates; no deployment occurs. |
 | GitOps validation | Pull request affecting `clusters/**`, `platform/**`, or `applications/**` | Renders Kustomize sources and evaluates Conftest/Rego policy. | GitHub Actions validates; Argo CD owns deployment. |
 | Image publishing | Manual `Publish demo API` workflow | Uses GitHub OIDC and scoped `AcrPush` to publish an immutable ACR image tag. | GitHub Actions builds; Git promotion selects deployment. |
 | Workload promotion | Pull request updating the image tag | Argo CD detects the merged desired-state change and reconciles AKS. | Argo CD owns Kubernetes state. |

@@ -78,6 +78,11 @@ variable "managed_hsm_auditor_principal_ids" {
   default     = []
   description = "Entra principal object IDs allowed to inspect the dedicated signing key without using it."
 }
+variable "crypto_demo_enabled" {
+  type        = bool
+  default     = false
+  description = "Creates the demo API workload identity and grants it access to the configured Managed HSM signing key and Key Vault secret capability."
+}
 variable "enterprise_pki_enabled" {
   type        = bool
   default     = false

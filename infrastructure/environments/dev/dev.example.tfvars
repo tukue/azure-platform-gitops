@@ -21,6 +21,7 @@ managed_hsm_signing_key_enabled             = false
 managed_hsm_signing_key_name                = null
 managed_hsm_signing_principal_ids           = []
 managed_hsm_auditor_principal_ids           = []
+crypto_demo_enabled                         = false
 enterprise_pki_enabled                      = false
 cloud_hsm_name                              = null
 cloud_hsm_sku_capacity                      = 1
