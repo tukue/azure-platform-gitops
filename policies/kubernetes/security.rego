@@ -85,3 +85,22 @@ deny contains msg if {
   not container.livenessProbe
   msg := sprintf("%s %s container %s must define a liveness probe", [input.kind, input.metadata.name, container.name])
 }
+
+deny contains msg if {
+  is_workload
+  container := pod_spec.containers[_]
+  not container.startupProbe
+  msg := sprintf("%s %s container %s must define a startup probe", [input.kind, input.metadata.name, container.name])
+}
+
+deny contains msg if {
+  is_workload
+  not input.metadata.labels["platform.example.com/owner"]
+  msg := sprintf("%s %s must declare a platform owner label", [input.kind, input.metadata.name])
+}
+
+deny contains msg if {
+  is_workload
+  not input.metadata.labels["platform.example.com/environment"]
+  msg := sprintf("%s %s must declare a platform environment label", [input.kind, input.metadata.name])
+}

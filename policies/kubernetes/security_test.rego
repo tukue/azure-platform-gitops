@@ -3,7 +3,13 @@ package kubernetes.security
 secure_deployment := {
   "apiVersion": "apps/v1",
   "kind": "Deployment",
-  "metadata": {"name": "secure-api"},
+  "metadata": {
+    "name": "secure-api",
+    "labels": {
+      "platform.example.com/owner": "platform-team",
+      "platform.example.com/environment": "dev"
+    }
+  },
   "spec": {
     "template": {
       "spec": {
@@ -20,7 +26,8 @@ secure_deployment := {
             "limits": {"cpu": "500m", "memory": "256Mi"}
           },
           "readinessProbe": {"httpGet": {"path": "/health", "port": 8080}},
-          "livenessProbe": {"httpGet": {"path": "/health", "port": 8080}}
+          "livenessProbe": {"httpGet": {"path": "/health", "port": 8080}},
+          "startupProbe": {"httpGet": {"path": "/health", "port": 8080}}
         }]
       }
     }

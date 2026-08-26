@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "demo-api"
+  namespace: "demo"
+  labels:
+    app.kubernetes.io/name: "demo-api"
+    app.kubernetes.io/part-of: "azure-aks-platform"
+    app.kubernetes.io/managed-by: "platform-golden-path"
+    platform.example.com/owner: "platform-team"
+    platform.example.com/environment: "dev"
+    platform.example.com/cost-center: "platform-team"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "demo-api"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "demo-api"
+        app.kubernetes.io/part-of: "azure-aks-platform"
+        platform.example.com/owner: "platform-team"
+        platform.example.com/environment: "dev"
+        azure.workload.identity/use: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName: "demo-api"
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: "replace-with-your-acr.azurecr.io/demo-api:0.1.0"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: demo-api-runtime
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: "/health"
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: "/health"
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: "/health"
+              port: http
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001

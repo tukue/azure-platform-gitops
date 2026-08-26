@@ -14,8 +14,29 @@ permissions:
   contents: read
 
 jobs:
+  onboarding:
+    name: Validate application registrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Test registration generator
+        run: python -m unittest discover -s scripts -p "test_*.py"
+      - name: Verify generated application workloads
+        run: |
+          shopt -s nullglob
+          for config in applications/registrations/*.json; do
+            application_name="$(basename "${config%.json}")"
+            python scripts/onboard_application.py check \
+              --config "$config" \
+              --output "applications/onboarded/$application_name"
+          done
+
   render:
     name: Render ${{ matrix.path }}
+    needs: onboarding
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -37,6 +58,8 @@ jobs:
           sudo install --mode 0755 conftest /usr/local/bin/conftest
       - name: Verify policy tests
         run: conftest verify --policy policies/kubernetes
+      - name: Check documentation links
+        run: python scripts/check_markdown_links.py
       - name: Render Kustomize source
         run: |
           kubectl kustomize "${{ matrix.path }}" > rendered.yaml
