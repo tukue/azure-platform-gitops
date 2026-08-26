@@ -1,6 +1,7 @@
 import base64
 import binascii
 import hashlib
+import logging
 import os
 from functools import lru_cache
 
@@ -14,6 +15,7 @@ from pydantic import BaseModel, Field
 from prometheus_client import Counter, make_asgi_app
 
 app = FastAPI(title="demo-api", version="0.1.0")
+logger = logging.getLogger(__name__)
 health_checks = Counter("demo_api_health_checks_total", "Completed health checks.")
 crypto_operations = Counter("demo_api_crypto_operations_total", "Managed HSM cryptographic operations.", ["operation", "outcome"])
 
@@ -73,12 +75,20 @@ class KeyVaultSecretStatusService:
 
 
 @lru_cache
+def create_signing_service(hsm_uri: str, key_name: str) -> HsmSigningService:
+    return HsmSigningService(hsm_uri, key_name)
+
+
 def get_signing_service() -> HsmSigningService:
     hsm_uri = os.getenv("AZURE_MANAGED_HSM_URI")
     key_name = os.getenv("AZURE_MANAGED_HSM_KEY_NAME")
     if not hsm_uri or not key_name:
-        raise RuntimeError("Managed HSM URI and signing key name must be configured")
-    return HsmSigningService(hsm_uri, key_name)
+        raise HTTPException(status_code=503, detail="Cryptographic service is not configured")
+
+    try:
+        return create_signing_service(hsm_uri, key_name)
+    except Exception as error:
+        raise unavailable(error) from error
 
 
 @lru_cache
@@ -91,7 +101,8 @@ def get_key_vault_secret_status_service() -> KeyVaultSecretStatusService | None:
 
 
 def unavailable(error: Exception) -> HTTPException:
-    return HTTPException(status_code=503, detail=f"Azure cryptographic service unavailable: {error}")
+    logger.exception("Azure cryptographic service request failed", exc_info=error)
+    return HTTPException(status_code=503, detail="Cryptographic service temporarily unavailable")
 
 
 @app.post("/sign")

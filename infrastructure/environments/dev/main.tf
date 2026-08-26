@@ -177,6 +177,15 @@ module "cmk" {
   depends_on = [terraform_data.cmk_configuration]
 }
 
+resource "azurerm_user_assigned_identity" "crypto_demo" {
+  count = var.crypto_demo_enabled ? 1 : 0
+
+  name                = "id-${local.name_prefix}-crypto-demo"
+  location            = azurerm_resource_group.this.location
+  resource_group_name = azurerm_resource_group.this.name
+  tags                = local.common_tags
+}
+
 module "managed_hsm" {
   count = var.managed_hsm_enabled ? 1 : 0
 
@@ -195,15 +204,6 @@ module "managed_hsm" {
   tags                       = local.common_tags
 
   depends_on = [terraform_data.managed_hsm_configuration]
-}
-
-resource "azurerm_user_assigned_identity" "crypto_demo" {
-  count = var.crypto_demo_enabled ? 1 : 0
-
-  name                = "id-${local.name_prefix}-crypto-demo"
-  location            = azurerm_resource_group.this.location
-  resource_group_name = azurerm_resource_group.this.name
-  tags                = local.common_tags
 }
 
 resource "azurerm_federated_identity_credential" "crypto_demo" {
