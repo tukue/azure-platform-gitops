@@ -37,7 +37,11 @@ jobs:
         with:
           tflint_version: v0.64.0
       - name: Run TFLint
-        run: tflint --recursive infrastructure
+        run: |
+          while IFS= read -r directory; do
+            echo "Linting $directory"
+            tflint --chdir="$directory"
+          done < <(find infrastructure -name '*.tf' -printf '%h\n' | sort -u)
 
   security:
     runs-on: ubuntu-latest
