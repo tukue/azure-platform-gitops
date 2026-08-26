@@ -15,13 +15,17 @@ acr_sku                                 = "Basic"
 acr_public_network_access_enabled       = true
 key_vault_purge_protection_enabled      = true
 key_vault_soft_delete_retention_days    = 90
+production_security_profile_enabled     = true
 observability_public_network_access_enabled = false
+observability_private_link_enabled          = true
 grafana_public_network_access_enabled       = false
 ```
 
 The Basic ACR profile keeps public registry access enabled so GitHub-hosted runners can publish images. Registry administrator credentials remain disabled and AKS pulls through its least-privilege kubelet identity with `AcrPull`.
 
-Key Vault public access is disabled. Purge protection makes permanent deletion impossible until soft-delete retention ends, which is expected production behavior and must be considered during environment teardown.
+Key Vault public access and the Azure-services bypass are disabled. Access must use the private endpoint, private DNS, and Azure RBAC. Purge protection makes permanent deletion impossible until soft-delete retention ends, which is expected production behavior and must be considered during environment teardown.
+
+`production_security_profile_enabled` is a Terraform guardrail, not a second environment implementation. It fails planning if the private AKS, Key Vault recovery, and observability private-access controls above are not enabled together. The Basic ACR public publishing exception remains explicit because GitHub-hosted runners cannot access an ACR private endpoint.
 
 ## DNS and access checks
 

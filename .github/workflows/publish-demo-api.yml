@@ -21,7 +21,7 @@ jobs:
       vars.AZURE_SUBSCRIPTION_ID != '' && vars.AZURE_PRINCIPAL_ID != '' &&
       vars.ACR_NAME != ''
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}

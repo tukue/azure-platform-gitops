@@ -34,6 +34,7 @@ acr_sku                                     = "Basic"
 acr_public_network_access_enabled           = true
 key_vault_purge_protection_enabled          = false
 key_vault_soft_delete_retention_days        = 7
+production_security_profile_enabled         = false
 log_analytics_retention_in_days             = 30
 observability_public_network_access_enabled = false
 observability_private_link_enabled          = true

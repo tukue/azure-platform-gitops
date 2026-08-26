@@ -22,6 +22,49 @@ Terraform creates an RBAC-enabled Azure Key Vault with public network access dis
 
 Argo CD installs External Secrets Operator and the `azure-key-vault` `ClusterSecretStore`. The operator runs without Azure permissions; it requests a token for the dedicated referenced service account when it reconciles the store. This separation reduces the impact of a controller-pod compromise.
 
+## Authentication and authorization flow
+
+This platform uses AKS Workload Identity rather than a client secret, service-principal password, or Key Vault access policy. The following sequence retrieves a secret without exposing an Azure credential in the cluster:
+
+1. Argo CD reconciles the dedicated `azure-key-vault-reader` ServiceAccount and `ClusterSecretStore` from Git.
+2. When External Secrets Operator reconciles a secret reference, AKS provides a projected, short-lived ServiceAccount token to the referenced reader identity.
+3. Azure Identity exchanges that token with Microsoft Entra ID through the federated identity credential. The credential accepts only the AKS OIDC issuer, audience `api://AzureADTokenExchange`, and subject `system:serviceaccount:external-secrets:azure-key-vault-reader`.
+4. Microsoft Entra ID issues an access token for the user-assigned managed identity. No Azure client secret is created, stored, or mounted in the pod.
+5. External Secrets Operator presents that token to the private Key Vault endpoint. Private DNS and network routing must resolve and reach the endpoint before authorization is evaluated.
+6. Azure RBAC evaluates the identity's `Key Vault Secrets User` assignment scoped to this Key Vault. It permits secret read operations only; it does not allow creating, deleting, listing, or managing keys, certificates, or role assignments.
+7. Key Vault returns the referenced secret to External Secrets Operator, which writes the declared key into the target Kubernetes Secret. The application reads the Kubernetes Secret; it does not receive Key Vault management permissions.
+
+```mermaid
+sequenceDiagram
+    participant ESO as External Secrets Operator
+    participant SA as Reader ServiceAccount
+    participant AKS as AKS OIDC issuer
+    participant Entra as Microsoft Entra ID
+    participant MI as User-assigned managed identity
+    participant KV as Private Azure Key Vault
+    participant K8S as Kubernetes Secret
+
+    ESO->>SA: Reconcile declared secret reference
+    SA->>AKS: Request projected ServiceAccount token
+    ESO->>Entra: Exchange token using federated credential
+    Entra->>MI: Issue Key Vault access token
+    ESO->>KV: Get referenced secret with bearer token
+    KV->>KV: Enforce private network and Key Vault Secrets User RBAC
+    KV-->>ESO: Return secret value
+    ESO->>K8S: Reconcile declared Kubernetes Secret
+```
+
+### Authorization boundaries
+
+| Component | Permission | Explicitly not permitted |
+| --- | --- | --- |
+| External Secrets reader identity | Read secrets from the platform Key Vault through `Key Vault Secrets User` | Create, update, delete, list, or export secrets; manage keys, certificates, or Azure RBAC |
+| External Secrets Operator controller | Reconcile Kubernetes resources through its Kubernetes RBAC | Direct Azure Key Vault access without the referenced reader ServiceAccount |
+| Demo application | Read the synchronized Kubernetes Secret allowed by namespace RBAC | Direct Key Vault access or Azure key-management operations |
+| Platform operator | Populate or rotate secret values from an approved private-network workstation | Embed values in Git, Terraform variables, Terraform state, or manifests |
+
+The `Key Vault Secrets User` role can read any secret in the vault. For production, use a separate vault or a separately scoped secret-consumption identity when applications need stronger isolation than a shared platform secret vault can provide.
+
 ## Bootstrap configuration
 
 After `terraform apply`, obtain the non-secret identifiers:
@@ -53,7 +96,7 @@ kubectl -n demo get externalsecret demo-api-runtime
 kubectl -n demo get secret demo-api-runtime
 ```
 
-If synchronization fails, inspect `kubectl -n demo describe externalsecret demo-api-runtime` and verify private DNS resolves `<vault>.vault.azure.net` to the private endpoint from the AKS VNet. Confirm the federated credential subject exactly matches `system:serviceaccount:external-secrets:azure-key-vault-reader` and that the identity has `Key Vault Secrets User` at this Key Vault scope.
+If synchronization fails, inspect `kubectl -n demo describe externalsecret demo-api-runtime` and verify private DNS resolves `<vault>.vault.azure.net` to the private endpoint from the AKS VNet. Confirm the federated credential issuer is the cluster OIDC issuer, its subject exactly matches `system:serviceaccount:external-secrets:azure-key-vault-reader`, its audience is `api://AzureADTokenExchange`, and that the identity has `Key Vault Secrets User` at this Key Vault scope. A `403` indicates Azure RBAC or Key Vault authorization; a DNS or connection error indicates private-network configuration before Key Vault authorization is reached.
 
 ## Security and cost
 

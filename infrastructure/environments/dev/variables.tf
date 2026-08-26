@@ -169,6 +169,11 @@ variable "key_vault_soft_delete_retention_days" {
     error_message = "Key Vault soft-delete retention must be between 7 and 90 days."
   }
 }
+variable "production_security_profile_enabled" {
+  type        = bool
+  default     = false
+  description = "Enforces private AKS, Key Vault purge protection with 90-day retention, and private Azure Monitor/Grafana access. Enable only when the required private connectivity is available."
+}
 variable "system_node_vm_size" {
   type    = string
   default = "Standard_D4ds_v5"

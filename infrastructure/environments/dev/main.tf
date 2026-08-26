@@ -81,6 +81,24 @@ resource "terraform_data" "monitor_private_link_configuration" {
   }
 }
 
+resource "terraform_data" "production_security_profile" {
+  input = var.production_security_profile_enabled
+
+  lifecycle {
+    precondition {
+      condition = !var.production_security_profile_enabled || (
+        var.private_cluster_enabled &&
+        var.key_vault_purge_protection_enabled &&
+        var.key_vault_soft_delete_retention_days == 90 &&
+        var.observability_private_link_enabled &&
+        !var.observability_public_network_access_enabled &&
+        !var.grafana_public_network_access_enabled
+      )
+      error_message = "The production security profile requires private AKS, Key Vault purge protection with 90-day retention, and Azure Monitor/Grafana private access through AMPLS."
+    }
+  }
+}
+
 module "networking" {
   source                                  = "../../modules/networking"
   name                                    = "vnet-${local.name_prefix}"

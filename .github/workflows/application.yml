@@ -17,8 +17,8 @@ jobs:
       run:
         working-directory: applications/demo-api/src
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: pip
@@ -34,10 +34,10 @@ jobs:
           pytest -q --junitxml=../test-results/junit.xml
       - name: Publish test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: demo-api-test-results
           path: applications/demo-api/test-results/junit.xml
-          if-no-files-found: error
+          if-no-files-found: warn
       - name: Build container image
         run: docker build .. --tag demo-api:ci
