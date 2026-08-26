@@ -1,0 +1,20 @@
+{
+  "name": "demo-api",
+  "owner": "platform-team",
+  "environment": "dev",
+  "namespace": "demo",
+  "image": "replace-with-your-acr.azurecr.io/demo-api:0.1.0",
+  "resourceProfile": "small",
+  "healthCheckPath": "/health",
+  "ingress": {
+    "enabled": true,
+    "host": "demo-api.internal.example.com"
+  },
+  "keyVaultAccess": {
+    "enabled": true,
+    "secretName": "demo-api-runtime-token"
+  },
+  "workloadIdentity": {
+    "enabled": false
+  }
+}

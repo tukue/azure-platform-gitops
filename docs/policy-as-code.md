@@ -18,6 +18,14 @@ flowchart LR
     AP --> REPORT[Azure compliance reporting]
 ```
 
+## Policy classification
+
+| Class | Current implementation | Behaviour |
+| --- | --- | --- |
+| Mandatory guardrails | Conftest workload policies in this repository | Block the pull request when a rendered workload violates the baseline. |
+| Advisory guardrails | Azure Policy assignments introduced in Audit mode | Report compliance before a platform-owned decision to enforce. |
+| Future controls | Image-signature verification, per-namespace egress policy, and organization-wide Azure Policy initiatives | Require a separate ownership, exception, and rollout decision. |
+
 ## Enforced pull-request baseline
 
 `policies/kubernetes/security.rego` evaluates Deployments, StatefulSets, and DaemonSets. It denies workloads that lack:
@@ -26,6 +34,8 @@ flowchart LR
 - disabled privilege escalation and a read-only root filesystem;
 - CPU and memory requests and limits;
 - readiness and liveness probes; or
+- a startup probe; or
+- platform owner and environment labels; or
 - an immutable image tag other than `latest`.
 
 Run the same validation locally after installing Conftest `0.68.2`:

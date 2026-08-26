@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Azure AKS platform service registration",
+  "type": "object",
+  "required": [
+    "name",
+    "owner",
+    "environment",
+    "namespace",
+    "image",
+    "resourceProfile",
+    "healthCheckPath",
+    "ingress",
+    "keyVaultAccess",
+    "workloadIdentity"
+  ],
+  "properties": {
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,30}$" },
+    "owner": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,30}$" },
+    "environment": { "enum": ["dev", "staging", "prod"] },
+    "namespace": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,30}$" },
+    "image": { "type": "string", "minLength": 1 },
+    "resourceProfile": { "enum": ["small", "medium"] },
+    "healthCheckPath": { "type": "string", "pattern": "^/" },
+    "ingress": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "host": { "type": "string" }
+      }
+    },
+    "keyVaultAccess": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "secretName": { "type": "string", "pattern": "^[a-z0-9-]{1,63}$" }
+      }
+    },
+    "workloadIdentity": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "clientId": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" },
+        "tenantId": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" }
+      }
+    }
+  },
+  "additionalProperties": false
+}

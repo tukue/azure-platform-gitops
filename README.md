@@ -2,6 +2,16 @@
 
 This repository is a focused reference implementation for an Azure platform delivery path: Terraform provisions Azure foundations, GitHub Actions validates changes, Argo CD reconciles Kubernetes desired state, and AKS runs observable workloads from ACR images.
 
+## Platform as a product
+
+The platform is for application developers who need a secure, observable, repeatable path to AKS without managing its Azure, Terraform, Kubernetes, or Argo CD internals. The supported interface is a small application registration that generates a reviewed Kustomize workload and is reconciled by Argo CD.
+
+- Read the [platform product definition](docs/platform-product.md) for users, capabilities, ownership, SLO design targets, feedback, boundaries, and roadmap.
+- Follow the [developer guide](docs/developer-guide.md) to register and promote a service in approximately ten minutes.
+- Use `make doctor`, `make onboard-demo`, `make onboard-check`, and `make test-onboarding` for local preflight and golden-path validation.
+
+The registration generator provides Namespace, Deployment, Service, PDB, HPA, NetworkPolicy, pod hardening, probes, labels, metrics annotations, optional ingress, and optional External Secrets references. Azure identity and Key Vault CSI self-service provisioning are deliberately deferred until their Azure RBAC and operational ownership models are implemented.
+
 ## Requirements addressed
 
 The platform demonstrates how a regulated engineering organization can deliver Kubernetes workloads while protecting sensitive keys, certificates, and operational data.
@@ -134,6 +144,9 @@ infrastructure/environments/dev/ Dev composition and outputs
 clusters/dev/                    Argo CD app-of-apps entry point
 platform/                        Namespaces and shared Helm releases
 applications/demo-api/           API source, image build, and workload manifests
+applications/registrations/      Developer-facing application registration contracts
+applications/onboarded/          Generated, reviewed Kustomize workloads
+templates/service-api/           Golden-path schema and template contract
 .github/workflows/               Infrastructure and application validation
 docs/adr/                         Architecture decisions
 ```
@@ -238,6 +251,8 @@ The deployment returns to the Git-declared two replicas through Argo CD self-hea
 ## Observability
 
 AKS sends container logs to Azure Monitor Container Insights and `law-<project>-<environment>`. Managed Prometheus sends Kubernetes and annotated application metrics to `amw-<project>-<environment>`, while Azure Managed Grafana provides visualization through managed identity and Azure RBAC. Two Azure Monitor alerts detect excessive container restarts and missing demo API pods. See [Azure-native observability](docs/observability.md) for architecture, KQL, alerting, identity, troubleshooting, and cost guidance.
+
+The minimum platform dashboard model uses Azure built-in AKS/Managed Prometheus views for node health, pod health, CPU/memory saturation, restart rates, and deployment availability. Argo CD sync/health is owned by the platform team; workload availability and application-specific thresholds are owned by the application team. Dashboard-as-code and GitHub Actions deployment-result telemetry are future improvements; see [platform product](docs/platform-product.md).
 
 ## Secret management
 
