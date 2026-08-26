@@ -18,7 +18,7 @@ jobs:
       run:
         working-directory: infrastructure/environments/dev
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.10.4"
@@ -60,7 +60,7 @@ jobs:
       TF_VAR_private_cluster_enabled: false
       TF_VAR_api_server_authorized_ip_ranges: ${{ vars.AKS_API_SERVER_AUTHORIZED_IP_RANGES }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}

@@ -30,7 +30,7 @@ managed_hsm_signing_principal_ids = ["<signing-workload-managed-identity-object-
 managed_hsm_auditor_principal_ids = ["<security-audit-group-object-id>"]
 ```
 
-Terraform assigns built-in **Managed HSM Crypto User** only at `/keys/release-signing` to signing identities and **Managed HSM Crypto Auditor** at that same scope to audit identities. Do not grant broad HSM administrator, crypto officer, or subscription Contributor roles to application identities.
+Terraform assigns the custom **Platform signing client** role only at `/keys/release-signing` to signing identities. It grants key metadata read, sign, and verify without key-management permissions. Auditors receive **Managed HSM Crypto Auditor** at that same scope. Do not grant broad HSM administrator, crypto officer, or subscription Contributor roles to application identities.
 
 Run the preflight from a host with private DNS and network access to the HSM:
 

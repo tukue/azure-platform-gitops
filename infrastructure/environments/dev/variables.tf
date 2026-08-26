@@ -78,6 +78,11 @@ variable "managed_hsm_auditor_principal_ids" {
   default     = []
   description = "Entra principal object IDs allowed to inspect the dedicated signing key without using it."
 }
+variable "crypto_demo_enabled" {
+  type        = bool
+  default     = false
+  description = "Creates the demo API workload identity and grants it access to the configured Managed HSM signing key and Key Vault secret capability."
+}
 variable "enterprise_pki_enabled" {
   type        = bool
   default     = false
@@ -163,6 +168,11 @@ variable "key_vault_soft_delete_retention_days" {
     condition     = var.key_vault_soft_delete_retention_days >= 7 && var.key_vault_soft_delete_retention_days <= 90
     error_message = "Key Vault soft-delete retention must be between 7 and 90 days."
   }
+}
+variable "production_security_profile_enabled" {
+  type        = bool
+  default     = false
+  description = "Enforces private AKS, Key Vault purge protection with 90-day retention, and private Azure Monitor/Grafana access. Enable only when the required private connectivity is available."
 }
 variable "system_node_vm_size" {
   type    = string

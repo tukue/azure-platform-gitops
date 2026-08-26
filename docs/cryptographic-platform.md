@@ -12,7 +12,7 @@ It is an architecture and operating model. Azure Cloud HSM infrastructure is imp
 | --- | --- | --- | --- |
 | Application secrets | Private Azure Key Vault | Runtime secrets synchronized by External Secrets Operator. | AKS Workload Identity receives `Key Vault Secrets User`; secret values are not committed. |
 | AKS disk encryption key | Dedicated Standard Key Vault and Disk Encryption Set | Optional customer-managed encryption key for AKS disks. | Disk Encryption Set identity receives only the required crypto role; AKS receives Reader on the DES. |
-| Application signing key | Azure Managed HSM | Optional non-exportable `RSA-HSM` key for code or release-signing use cases. | Explicit signing identities receive Managed HSM Crypto User at the individual key scope; auditors receive Crypto Auditor at that scope. |
+| Application signing key | Azure Managed HSM | Optional non-exportable `RSA-HSM` key for code or release-signing use cases. | Explicit signing identities receive a custom metadata-read/sign/verify role at the individual key scope; auditors receive Crypto Auditor at that scope. |
 | Issuing-CA key | Azure Cloud HSM | Private key for an externally operated AD CS issuing CA. | PKCS#11/CNG/KSP access from approved private CA hosts; no key material is managed by Terraform or Kubernetes. |
 | Root-CA key | External offline root CA | Signs the issuing CA and anchors internal trust. | Separate, offline security ceremony and custody process outside this platform. |
 
