@@ -2,6 +2,7 @@ import argparse
 import json
 import re
 import sys
+from uuid import UUID
 from pathlib import Path
 
 
@@ -38,6 +39,26 @@ def require_object(value: dict, key: str) -> dict:
     return nested
 
 
+def contains_placeholder(value: object) -> bool:
+    if isinstance(value, str):
+        return "REPLACE_WITH_" in value
+    if isinstance(value, dict):
+        return any(contains_placeholder(nested) for nested in value.values())
+    if isinstance(value, list):
+        return any(contains_placeholder(nested) for nested in value)
+    return False
+
+
+def valid_uuid(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        parsed = UUID(value)
+    except ValueError:
+        return False
+    return parsed.int != 0 and str(parsed) == value.lower()
+
+
 def validate_registration(value: dict) -> None:
     required = {"name", "owner", "environment", "namespace", "image", "resourceProfile", "healthCheckPath", "ingress", "keyVaultAccess", "workloadIdentity"}
     unknown = sorted(set(value) - required)
@@ -46,6 +67,8 @@ def validate_registration(value: dict) -> None:
         fail(f"unsupported fields: {', '.join(unknown)}")
     if missing:
         fail(f"missing required fields: {', '.join(missing)}")
+    if contains_placeholder(value):
+        fail("placeholder values are not allowed; use an approved value or disable the optional capability")
 
     for key in ("name", "owner", "namespace"):
         if not isinstance(value[key], str) or not NAME_PATTERN.fullmatch(value[key]):
@@ -77,8 +100,8 @@ def validate_registration(value: dict) -> None:
     identity = require_object(value, "workloadIdentity")
     if not isinstance(identity.get("enabled"), bool):
         fail("workloadIdentity.enabled must be true or false")
-    if identity["enabled"] and (not isinstance(identity.get("clientId"), str) or not identity["clientId"] or not isinstance(identity.get("tenantId"), str) or not identity["tenantId"]):
-        fail("workloadIdentity.clientId and workloadIdentity.tenantId are required when workload identity is enabled")
+    if identity["enabled"] and (not valid_uuid(identity.get("clientId")) or not valid_uuid(identity.get("tenantId"))):
+        fail("workloadIdentity.clientId and workloadIdentity.tenantId must be non-zero canonical UUIDs when workload identity is enabled")
 
 
 def yaml_string(value: str) -> str:
@@ -114,6 +137,14 @@ def render(value: dict) -> dict[str, str]:
             "  annotations:\n"
             f"    azure.workload.identity/client-id: {yaml_string(workload_identity['clientId'])}\n"
             f"    azure.workload.identity/tenant-id: {yaml_string(workload_identity['tenantId'])}\n"
+        )
+
+    secret_environment = ""
+    if value["keyVaultAccess"]["enabled"]:
+        secret_environment = (
+            "          envFrom:\n"
+            "            - secretRef:\n"
+            f"                name: {app_name}-runtime\n"
         )
 
     files = {
@@ -177,7 +208,7 @@ spec:
         - name: app
           image: {image}
           imagePullPolicy: IfNotPresent
-          ports:
+{secret_environment}          ports:
             - name: http
               containerPort: 8080
           startupProbe:
@@ -292,9 +323,6 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    - ports:
-        - protocol: TCP
-          port: 443
 """,
     }
 
@@ -341,10 +369,6 @@ spec:
       remoteRef:
         key: {yaml_string(value['keyVaultAccess']['secretName'])}
 """
-        files["deployment.yaml"] = files["deployment.yaml"].replace(
-            "          ports:\n", f"          envFrom:\n            - secretRef:\n                name: {app_name}-runtime\n          ports:\n"
-        )
-
     resources = ["namespace.yaml", "service-account.yaml", "deployment.yaml", "service.yaml", "pdb.yaml", "hpa.yaml", "network-policy.yaml"]
     if "ingress.yaml" in files:
         resources.append("ingress.yaml")

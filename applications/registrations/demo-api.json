@@ -15,8 +15,6 @@
     "secretName": "demo-api-runtime-token"
   },
   "workloadIdentity": {
-    "enabled": true,
-    "clientId": "REPLACE_WITH_TERRAFORM_CRYPTO_DEMO_CLIENT_ID",
-    "tenantId": "REPLACE_WITH_TERRAFORM_TENANT_ID"
+    "enabled": false
   }
 }

@@ -38,6 +38,24 @@ class OnboardApplicationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "ingress.host"):
             validate_registration(registration)
 
+    def test_placeholder_values_are_rejected(self) -> None:
+        registration = read_registration(SAMPLE)
+        registration["owner"] = "REPLACE_WITH_OWNER"
+
+        with self.assertRaisesRegex(ValueError, "placeholder values"):
+            validate_registration(registration)
+
+    def test_workload_identity_requires_non_zero_uuids(self) -> None:
+        registration = read_registration(SAMPLE)
+        registration["workloadIdentity"] = {
+            "enabled": True,
+            "clientId": "00000000-0000-0000-0000-000000000000",
+            "tenantId": "not-a-uuid",
+        }
+
+        with self.assertRaisesRegex(ValueError, "non-zero canonical UUIDs"):
+            validate_registration(registration)
+
 
 if __name__ == "__main__":
     unittest.main()
