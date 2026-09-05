@@ -18,7 +18,7 @@ The supported extension points are the application registration fields, immutabl
 
 The generated baseline contains a restricted namespace, consistent ownership/environment/cost labels, ServiceAccount, Deployment, Service, PDB, HPA, NetworkPolicy, probes, resource profile, pod security context, and Prometheus annotations. It can add internal ingress and an External Secrets reference. Azure Workload Identity annotations are generated only when an approved identity client and tenant ID are supplied.
 
-The platform uses External Secrets Operator for Key Vault delivery. Secrets Store CSI is explicitly deferred: the repository does not yet provision a dedicated workload identity and Key Vault data-plane RBAC per self-service service, so adding a CSI manifest would be incomplete and misleading.
+The platform uses External Secrets Operator for Key Vault delivery. When an application registration requests Key Vault access, it must supply an approved workload identity and the Key Vault Private Endpoint host CIDR(s). The generated NetworkPolicy allows HTTPS only to those private addresses, in addition to cluster DNS. Secrets Store CSI is explicitly deferred: the repository does not yet provision a dedicated workload identity and Key Vault data-plane RBAC per self-service service, so adding a CSI manifest would be incomplete and misleading.
 
 ## Service objectives
 

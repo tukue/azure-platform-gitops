@@ -9,4 +9,3 @@ resources:
   - hpa.yaml
   - network-policy.yaml
   - ingress.yaml
-  - external-secret.yaml

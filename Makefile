@@ -2,10 +2,10 @@ TF_DIR := infrastructure/environments/dev
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init fmt validate plan apply destroy kubeconfig doctor onboard-demo onboard-check test-onboarding
+.PHONY: help init fmt validate security plan apply destroy kubeconfig doctor onboard-demo onboard-check test-onboarding
 
 help:
-	@echo "Targets: init fmt validate plan apply destroy kubeconfig doctor onboard-demo onboard-check test-onboarding"
+	@echo "Targets: init fmt validate security plan apply destroy kubeconfig doctor onboard-demo onboard-check test-onboarding"
 
 init:
 	terraform -chdir=$(TF_DIR) init
@@ -15,6 +15,10 @@ fmt:
 
 validate: init
 	terraform -chdir=$(TF_DIR) validate
+
+security:
+	@command -v checkov >/dev/null || { echo "Missing required command: checkov. Install it with: pip install checkov"; exit 1; }
+	checkov --directory infrastructure --framework terraform
 
 plan: init
 	terraform -chdir=$(TF_DIR) plan -var-file=dev.tfvars

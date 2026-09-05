@@ -11,8 +11,7 @@
     "host": "demo-api.internal.example.com"
   },
   "keyVaultAccess": {
-    "enabled": true,
-    "secretName": "demo-api-runtime-token"
+    "enabled": false
   },
   "workloadIdentity": {
     "enabled": false
