@@ -1,4 +1,5 @@
 import argparse
+import ipaddress
 import json
 import re
 import sys
@@ -59,6 +60,16 @@ def valid_uuid(value: object) -> bool:
     return parsed.int != 0 and str(parsed) == value.lower()
 
 
+def valid_private_endpoint_cidr(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        network = ipaddress.ip_network(value, strict=True)
+    except ValueError:
+        return False
+    return network.is_private and network.prefixlen == network.max_prefixlen
+
+
 def validate_registration(value: dict) -> None:
     required = {"name", "owner", "environment", "namespace", "image", "resourceProfile", "healthCheckPath", "ingress", "keyVaultAccess", "workloadIdentity"}
     unknown = sorted(set(value) - required)
@@ -94,14 +105,20 @@ def validate_registration(value: dict) -> None:
     key_vault = require_object(value, "keyVaultAccess")
     if not isinstance(key_vault.get("enabled"), bool):
         fail("keyVaultAccess.enabled must be true or false")
-    if key_vault["enabled"] and (not isinstance(key_vault.get("secretName"), str) or not SECRET_PATTERN.fullmatch(key_vault["secretName"])):
-        fail("keyVaultAccess.secretName must be a lowercase Key Vault secret name when access is enabled")
+    if key_vault["enabled"]:
+        if not isinstance(key_vault.get("secretName"), str) or not SECRET_PATTERN.fullmatch(key_vault["secretName"]):
+            fail("keyVaultAccess.secretName must be a lowercase Key Vault secret name when access is enabled")
+        private_endpoint_cidrs = key_vault.get("privateEndpointCidrs")
+        if not isinstance(private_endpoint_cidrs, list) or not private_endpoint_cidrs or not all(valid_private_endpoint_cidr(cidr) for cidr in private_endpoint_cidrs):
+            fail("keyVaultAccess.privateEndpointCidrs must contain private /32 or /128 Key Vault private endpoint addresses when access is enabled")
 
     identity = require_object(value, "workloadIdentity")
     if not isinstance(identity.get("enabled"), bool):
         fail("workloadIdentity.enabled must be true or false")
     if identity["enabled"] and (not valid_uuid(identity.get("clientId")) or not valid_uuid(identity.get("tenantId"))):
         fail("workloadIdentity.clientId and workloadIdentity.tenantId must be non-zero canonical UUIDs when workload identity is enabled")
+    if key_vault["enabled"] and not identity["enabled"]:
+        fail("keyVaultAccess requires workloadIdentity so Azure access is passwordless and attributable")
 
 
 def yaml_string(value: str) -> str:
@@ -145,6 +162,18 @@ def render(value: dict) -> dict[str, str]:
             "          envFrom:\n"
             "            - secretRef:\n"
             f"                name: {app_name}-runtime\n"
+        )
+
+    key_vault_egress = ""
+    if value["keyVaultAccess"]["enabled"]:
+        key_vault_egress = "".join(
+            "    - to:\n"
+            "        - ipBlock:\n"
+            f"            cidr: {cidr}\n"
+            "      ports:\n"
+            "        - protocol: TCP\n"
+            "          port: 443\n"
+            for cidr in value["keyVaultAccess"]["privateEndpointCidrs"]
         )
 
     files = {
@@ -323,7 +352,7 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-""",
+{key_vault_egress}""",
     }
 
     if value["ingress"]["enabled"]:

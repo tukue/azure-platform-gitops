@@ -8,9 +8,9 @@ The platform is for application developers who need a secure, observable, repeat
 
 - Read the [platform product definition](docs/platform-product.md) for users, capabilities, ownership, SLO design targets, feedback, boundaries, and roadmap.
 - Follow the [developer guide](docs/developer-guide.md) to register and promote a service in approximately ten minutes.
-- Use `make doctor`, `make onboard-demo`, `make onboard-check`, and `make test-onboarding` for local preflight and golden-path validation.
+- Use `make doctor`, `make security`, `make onboard-demo`, `make onboard-check`, and `make test-onboarding` for local preflight and golden-path validation.
 
-The registration generator provides Namespace, Deployment, Service, PDB, HPA, NetworkPolicy, pod hardening, probes, labels, metrics annotations, optional ingress, and optional External Secrets references. Azure identity and Key Vault CSI self-service provisioning are deliberately deferred until their Azure RBAC and operational ownership models are implemented.
+The registration generator provides Namespace, Deployment, Service, PDB, HPA, NetworkPolicy, pod hardening, probes, labels, metrics annotations, optional ingress, and optional External Secrets references. A registration requesting Key Vault access must use an approved Azure Workload Identity and Key Vault Private Endpoint host CIDR(s); the generator permits HTTPS only to those addresses. Azure identity provisioning and Key Vault CSI self-service provisioning are deliberately deferred until their Azure RBAC and operational ownership models are implemented.
 
 ## Requirements addressed
 

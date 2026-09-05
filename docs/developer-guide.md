@@ -2,7 +2,7 @@
 
 ## Ten-minute onboarding path
 
-1. Copy `applications/registrations/demo-api.json` to `applications/registrations/<application>.json` and change the required fields: name, owner, namespace, image, resource profile, health path, ingress, Key Vault requirement, and workload identity setting.
+1. Copy `applications/registrations/demo-api.json` to `applications/registrations/<application>.json` and change the required fields: name, owner, namespace, image, resource profile, health path, ingress, Key Vault requirement, and workload identity setting. For Key Vault access, obtain an approved workload identity client ID, tenant ID, and Key Vault Private Endpoint host CIDR(s) from the platform team.
 2. Keep the file name equal to `name`; use a non-`latest` image tag or digest.
 3. Generate the workload:
 
@@ -23,7 +23,7 @@ kubectl kustomize applications
 
 5. Open a pull request. GitHub Actions tests the generator, verifies generated files, renders Kustomize, and applies mandatory Conftest policies. It does not deploy to Kubernetes.
 6. After merge, Argo CD reconciles `applications/` to AKS. Confirm with `argocd app get applications` and `kubectl -n <namespace> get deploy,pods,hpa,pdb,networkpolicy`.
-7. If Key Vault access is enabled, a platform operator creates or rotates the value in the private vault. External Secrets Operator creates `<application>-runtime`; values never enter Git or Terraform state.
+7. If Key Vault access is enabled, the generator requires Workload Identity and creates HTTPS egress only to the supplied private endpoint addresses. A platform operator creates or rotates the value in the private vault. External Secrets Operator creates `<application>-runtime`; values never enter Git or Terraform state.
 8. Promote a new image by changing only `image` in the registration, regenerating the workload, and merging the reviewed pull request.
 
 ## Failed deployment and rollback

@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from onboard_application import generate, read_registration, validate_registration
+from onboard_application import generate, read_registration, render, validate_registration
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,6 +54,41 @@ class OnboardApplicationTests(unittest.TestCase):
         }
 
         with self.assertRaisesRegex(ValueError, "non-zero canonical UUIDs"):
+            validate_registration(registration)
+
+    def test_key_vault_access_requires_workload_identity_and_private_endpoint(self) -> None:
+        registration = read_registration(SAMPLE)
+        registration["keyVaultAccess"] = {
+            "enabled": True,
+            "secretName": "demo-api-runtime-token",
+            "privateEndpointCidrs": ["10.20.30.40/32"],
+        }
+
+        with self.assertRaisesRegex(ValueError, "requires workloadIdentity"):
+            validate_registration(registration)
+
+        registration["workloadIdentity"] = {
+            "enabled": True,
+            "clientId": "11111111-1111-1111-1111-111111111111",
+            "tenantId": "22222222-2222-2222-2222-222222222222",
+        }
+        validate_registration(registration)
+        self.assertIn("cidr: 10.20.30.40/32", render(registration)["network-policy.yaml"])
+
+    def test_key_vault_access_rejects_non_host_private_endpoint_range(self) -> None:
+        registration = read_registration(SAMPLE)
+        registration["keyVaultAccess"] = {
+            "enabled": True,
+            "secretName": "demo-api-runtime-token",
+            "privateEndpointCidrs": ["10.20.30.0/24"],
+        }
+        registration["workloadIdentity"] = {
+            "enabled": True,
+            "clientId": "11111111-1111-1111-1111-111111111111",
+            "tenantId": "22222222-2222-2222-2222-222222222222",
+        }
+
+        with self.assertRaisesRegex(ValueError, "privateEndpointCidrs"):
             validate_registration(registration)
 
 
